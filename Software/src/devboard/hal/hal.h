@@ -22,6 +22,31 @@
 #define DEFAULT_MCP2517_BUS HSPI
 #endif
 
+// Ethernet PHY / clock-mode kinds — project-local integer tags decoupled from
+// <ETH.h>'s enums. Board HAL headers return these; ethernet.cpp maps them to
+// eth_phy_type_t / eth_clock_mode_t at the call site. This keeps <ETH.h> (and
+// its extern "C" ESP-IDF headers) out of the HAL headers, which matters
+// because hal.cpp #includes the selected board HAL header from *inside* the
+// init_hal() function body.
+enum EthPhyKind {
+  ETH_PHY_KIND_NONE = -1,
+  ETH_PHY_KIND_LAN8720 = 0,
+  ETH_PHY_KIND_TLK110 = 1,
+  ETH_PHY_KIND_IP101 = 1,  // same silicon as TLK110 (arduino-esp32 aliases them)
+  ETH_PHY_KIND_RTL8201 = 2,
+  ETH_PHY_KIND_DP83848 = 3,
+  ETH_PHY_KIND_KSZ8041 = 4,
+  ETH_PHY_KIND_KSZ8081 = 5,
+};
+
+enum EthClkKind {
+  ETH_CLK_KIND_NONE = -1,
+  ETH_CLK_KIND_GPIO0_IN = 0,
+  ETH_CLK_KIND_GPIO0_OUT = 1,
+  ETH_CLK_KIND_GPIO16_OUT = 2,
+  ETH_CLK_KIND_GPIO17_OUT = 3,
+};
+
 // Hardware Abstraction Layer base class.
 // Derive a class to define board-specific parameters such as GPIO pin numbers
 // This base class implements a mechanism for allocating GPIOs.
@@ -215,18 +240,19 @@ class Esp32Hal {
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_NC; }
 
   // Ethernet (RMII PHY). Boards with an on-board Ethernet PHY override these.
-  // Type/clock-mode values are raw ints to avoid pulling <ETH.h> into every HAL header;
-  // the ethernet module casts them to eth_phy_type_t / eth_clock_mode_t at the call site.
+  // Type/clock-mode values are the project-local ETH_PHY_KIND_* / ETH_CLK_KIND_*
+  // integer tags (see enum EthPhyKind / EthClkKind above); ethernet.cpp maps them
+  // to eth_phy_type_t / eth_clock_mode_t. Keeps <ETH.h> out of HAL headers.
   // NOTE: named HAS_ETH() not HAS_ETHERNET() because the eModbus library defines
   // HAS_ETHERNET as a preprocessor macro (options.h) — a method with that name would
   // be textually rewritten to "1()" wherever both headers are visible.
   virtual bool HAS_ETH() { return false; }
-  virtual int ETH_PHY_TYPE_ID() { return -1; }
+  virtual int ETH_PHY_TYPE_ID() { return ETH_PHY_KIND_NONE; }
   virtual int ETH_PHY_ADDR_NUM() { return -1; }
   virtual gpio_num_t ETH_PHY_MDC_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t ETH_PHY_MDIO_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t ETH_PHY_POWER_PIN() { return GPIO_NUM_NC; }
-  virtual int ETH_CLK_MODE_ID() { return -1; }
+  virtual int ETH_CLK_MODE_ID() { return ETH_CLK_KIND_NONE; }
 
   // Returns the available comm interfaces on this HW
   virtual std::vector<comm_interface> available_interfaces() = 0;

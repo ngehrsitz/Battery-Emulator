@@ -9,6 +9,43 @@
 
 static bool eth_has_ip = false;
 
+// Map project-local ETH_PHY_KIND_* tags (from hal.h) to arduino-esp32's
+// eth_phy_type_t. Board HAL headers return the kind tag so they don't have to
+// include <ETH.h> — see hw_dfrobot_edge101.h for why that matters.
+static eth_phy_type_t phy_type_from_kind(int kind) {
+  switch (kind) {
+    case ETH_PHY_KIND_LAN8720:
+      return ETH_PHY_LAN8720;
+    case ETH_PHY_KIND_TLK110:  // == ETH_PHY_KIND_IP101 (same silicon)
+      return ETH_PHY_TLK110;
+    case ETH_PHY_KIND_RTL8201:
+      return ETH_PHY_RTL8201;
+    case ETH_PHY_KIND_DP83848:
+      return ETH_PHY_DP83848;
+    case ETH_PHY_KIND_KSZ8041:
+      return ETH_PHY_KSZ8041;
+    case ETH_PHY_KIND_KSZ8081:
+      return ETH_PHY_KSZ8081;
+    default:
+      return ETH_PHY_MAX;  // sentinel — ETH.begin() will report failure
+  }
+}
+
+static eth_clock_mode_t clk_mode_from_kind(int kind) {
+  switch (kind) {
+    case ETH_CLK_KIND_GPIO0_IN:
+      return ETH_CLOCK_GPIO0_IN;
+    case ETH_CLK_KIND_GPIO0_OUT:
+      return ETH_CLOCK_GPIO0_OUT;
+    case ETH_CLK_KIND_GPIO16_OUT:
+      return ETH_CLOCK_GPIO16_OUT;
+    case ETH_CLK_KIND_GPIO17_OUT:
+      return ETH_CLOCK_GPIO17_OUT;
+    default:
+      return ETH_CLOCK_GPIO0_IN;  // safe default; only used when HAS_ETH() is false anyway
+  }
+}
+
 // Single multiplexed handler for the ETH_* subset of arduino-esp32's WiFi event
 // dispatcher. Emits our EVENT_ETHERNET_* pair and tracks whether we have an IP.
 static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
@@ -74,9 +111,9 @@ void init_Ethernet() {
   WiFi.onEvent(onEthEvent, ARDUINO_EVENT_ETH_DISCONNECTED);
   WiFi.onEvent(onEthEvent, ARDUINO_EVENT_ETH_STOP);
 
-  const bool ok = ETH.begin(static_cast<eth_phy_type_t>(esp32hal->ETH_PHY_TYPE_ID()), esp32hal->ETH_PHY_ADDR_NUM(),
+  const bool ok = ETH.begin(phy_type_from_kind(esp32hal->ETH_PHY_TYPE_ID()), esp32hal->ETH_PHY_ADDR_NUM(),
                             esp32hal->ETH_PHY_MDC_PIN(), esp32hal->ETH_PHY_MDIO_PIN(), esp32hal->ETH_PHY_POWER_PIN(),
-                            static_cast<eth_clock_mode_t>(esp32hal->ETH_CLK_MODE_ID()));
+                            clk_mode_from_kind(esp32hal->ETH_CLK_MODE_ID()));
   if (!ok) {
     logging.println("Ethernet init failed (ETH.begin returned false).");
     set_event(EVENT_ETHERNET_DISCONNECT, 0);

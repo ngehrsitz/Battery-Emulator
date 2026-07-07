@@ -1,7 +1,6 @@
 #ifndef __HW_DFROBOT_EDGE101_H__
 #define __HW_DFROBOT_EDGE101_H__
 
-#include <ETH.h>  // ETH_PHY_IP101, ETH_CLOCK_GPIO0_IN
 #include "hal.h"
 
 // DFRobot Edge101 IOT Controller (SKU DFR0886)
@@ -51,13 +50,18 @@ class DFRobotEdge101Hal : public Esp32Hal {
   // 25, 26, 27) are fixed by the ESP32 EMAC hardware and do not go through
   // the HAL pin allocator. GPIO 0 is repurposed as the RMII 50 MHz clock input,
   // which is why ETH_CLK_MODE is ETH_CLOCK_GPIO0_IN.
+  //
+  // ETH_PHY_KIND_* and ETH_CLK_KIND_* are project-local constants defined in
+  // hal.h — we avoid including <ETH.h> here because hal.cpp includes this
+  // header from *inside* init_hal()'s function body, which forbids anything
+  // that expands to extern "C" { at file scope.
   virtual bool HAS_ETH() override { return true; }
-  virtual int ETH_PHY_TYPE_ID() override { return ETH_PHY_IP101; }
+  virtual int ETH_PHY_TYPE_ID() override { return ETH_PHY_KIND_IP101; }
   virtual int ETH_PHY_ADDR_NUM() override { return 1; }
   virtual gpio_num_t ETH_PHY_MDC_PIN() override { return GPIO_NUM_4; }
   virtual gpio_num_t ETH_PHY_MDIO_PIN() override { return GPIO_NUM_13; }
   virtual gpio_num_t ETH_PHY_POWER_PIN() override { return GPIO_NUM_2; }
-  virtual int ETH_CLK_MODE_ID() override { return ETH_CLOCK_GPIO0_IN; }
+  virtual int ETH_CLK_MODE_ID() override { return ETH_CLK_KIND_GPIO0_IN; }
 
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative};
