@@ -128,6 +128,11 @@ static void init_mDNS() {
 }
 
 void init_WiFi() {
+  if (!wifi_enabled) {
+    DEBUG_PRINTF("init_Wifi: disabled by user setting; skipping\n");
+    return;
+  }
+
   DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
 
   // Keep the WiFi driver's mode/config changes in RAM instead of NVS. Credentials
@@ -241,6 +246,15 @@ static void check_ap_button() {
       hold_pins_across_reset();
       graceful_restart();
     } else if (held >= AP_BUTTON_AP_MS) {
+      if (!wifi_enabled) {
+        // Emergency recovery: bring WiFi + AP up ignoring the persisted disable
+        // flag, for this boot only. Do NOT persist wifi_enabled — reboot restores
+        // the user's preference. User must clear the checkbox in the UI to make
+        // the change stick.
+        wifi_enabled = true;
+        wifiap_enabled = true;
+        init_WiFi();  // creates the WiFi task + registers handlers
+      }
       if (!ap_active) {
         ap_provisioning_expired = false;  // manual start opens a fresh provisioning window
         WiFi.mode(WIFI_AP_STA);
@@ -254,8 +268,12 @@ static void check_ap_button() {
 
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
-  check_ap_button();
+  check_ap_button();  // must always run: emergency-recovery path even when WiFi is disabled
   check_ap_provisioning_window();
+
+  if (!wifi_enabled) {
+    return;  // don't drive reconnect logic when the user has disabled WiFi
+  }
 
   if (ssid.empty() || password.empty()) {
     return;

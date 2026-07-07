@@ -214,6 +214,17 @@ class Esp32Hal {
   // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP. Usually the BOOT button on GPIO0.
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_NC; }
 
+  // Ethernet (RMII PHY). Boards with an on-board Ethernet PHY override these.
+  // Type/clock-mode values are raw ints to avoid pulling <ETH.h> into every HAL header;
+  // the ethernet module casts them to eth_phy_type_t / eth_clock_mode_t at the call site.
+  virtual bool HAS_ETHERNET() { return false; }
+  virtual int ETH_PHY_TYPE_ID() { return -1; }
+  virtual int ETH_PHY_ADDR_NUM() { return -1; }
+  virtual gpio_num_t ETH_PHY_MDC_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t ETH_PHY_MDIO_PIN() { return GPIO_NUM_NC; }
+  virtual gpio_num_t ETH_PHY_POWER_PIN() { return GPIO_NUM_NC; }
+  virtual int ETH_CLK_MODE_ID() { return -1; }
+
   // Returns the available comm interfaces on this HW
   virtual std::vector<comm_interface> available_interfaces() = 0;
 

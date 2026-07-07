@@ -421,10 +421,11 @@ void init_webserver() {
   const char* boolSettingNames[] = {
       "DBLBTR",      "CNTCTRL",       "CNTCTRLDBL",   "PWMCNTCTRL",    "PERBMSRESET", "SDLOGENABLED", "STATICIP",
       "REMBMSRESET", "EXTPRECHARGE",  "USBENABLED",   "CANLOGUSB",     "WEBENABLED",  "CANFDASCAN",   "CANFD2ASCAN",
-      "CANLOGSD",    "WIFIAPENABLED", "MQTTENABLED",  "NOINVDISC",     "HADISC",      "MQTTCELLV",    "GTWRHD",
-      "DIGITALHVIL", "PERFPROFILE",   "INTERLOCKREQ", "SOCESTIMATED",  "PYLONOFFSET", "PYLONORDER",   "DEYEBYD",
-      "NCCONTACTOR", "TRIBTR",        "CNTCTRLTRI",   "ESPNOWENABLED", "PRIMOGEN24",  "CTINVERT",     "LOWPASSFILTER",
-      "WEBAUTH",     "SLOWCANINV",    "CHGTAPERSOC",
+<<<<<<< HEAD
+      "CANLOGSD",    "WIFIAPENABLED", "WIFIENABLED",  "MQTTENABLED",   "NOINVDISC",   "HADISC",       "MQTTCELLV",
+      "GTWRHD",      "DIGITALHVIL",   "PERFPROFILE",  "INTERLOCKREQ",  "SOCESTIMATED","PYLONOFFSET",  "PYLONORDER",
+      "DEYEBYD",     "NCCONTACTOR",   "TRIBTR",       "CNTCTRLTRI",    "ESPNOWENABLED","PRIMOGEN24",  "CTINVERT",
+      "LOWPASSFILTER","WEBAUTH",       "SLOWCANINV",   "CHGTAPERSOC",
 #ifndef SMALL_FLASH_DEVICE
       "SYSLOGEN",
 #endif
@@ -571,7 +572,10 @@ void init_webserver() {
 
               for (auto& boolSetting : boolSettingNames) {
                 auto p = request->getParam(boolSetting, true);
-                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
+                // Settings that default to true when unset. Keep this list narrow so unknown
+                // keys stay false-default (matches historical behaviour).
+                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED")) ||
+                                           (std::string(boolSetting) == std::string("WIFIENABLED"));
                 const bool value = p != nullptr && p->value() == "on";
                 if (settings.getBool(boolSetting, default_value) != value) {
                   settings.saveBool(boolSetting, value);

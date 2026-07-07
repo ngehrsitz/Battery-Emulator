@@ -9,6 +9,7 @@
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
+#include "../../devboard/network/network_status.h"
 #include "../../devboard/safety/safety.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
@@ -942,8 +943,9 @@ bool init_mqtt(void) {
 }
 
 void mqtt_client_loop(void) {
-  // Only attempt to publish/reconnect MQTT if Wi-Fi is connected and checkTimmer is elapsed
-  if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
+  // Only attempt to publish/reconnect MQTT if the network (WiFi or Ethernet) is up
+  // and checkTimmer is elapsed.
+  if (check_global_timer.elapsed() && network_connected()) {
 
     if (client_started == false) {
       // Configure timer with the loaded interval on first use
