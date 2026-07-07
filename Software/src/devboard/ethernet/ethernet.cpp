@@ -50,7 +50,7 @@ static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
 }
 
 void init_Ethernet() {
-  if (!esp32hal->HAS_ETHERNET()) {
+  if (!esp32hal->HAS_ETH()) {
     // The HAL was built with HW_HAS_ETHERNET but the concrete HAL class opted
     // out at runtime. Shouldn't happen with the current boards, but harmless.
     return;

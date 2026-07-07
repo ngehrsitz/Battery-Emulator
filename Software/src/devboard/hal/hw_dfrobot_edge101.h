@@ -51,7 +51,7 @@ class DFRobotEdge101Hal : public Esp32Hal {
   // 25, 26, 27) are fixed by the ESP32 EMAC hardware and do not go through
   // the HAL pin allocator. GPIO 0 is repurposed as the RMII 50 MHz clock input,
   // which is why ETH_CLK_MODE is ETH_CLOCK_GPIO0_IN.
-  virtual bool HAS_ETHERNET() override { return true; }
+  virtual bool HAS_ETH() override { return true; }
   virtual int ETH_PHY_TYPE_ID() override { return ETH_PHY_IP101; }
   virtual int ETH_PHY_ADDR_NUM() override { return 1; }
   virtual gpio_num_t ETH_PHY_MDC_PIN() override { return GPIO_NUM_4; }

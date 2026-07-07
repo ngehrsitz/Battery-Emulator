@@ -217,7 +217,10 @@ class Esp32Hal {
   // Ethernet (RMII PHY). Boards with an on-board Ethernet PHY override these.
   // Type/clock-mode values are raw ints to avoid pulling <ETH.h> into every HAL header;
   // the ethernet module casts them to eth_phy_type_t / eth_clock_mode_t at the call site.
-  virtual bool HAS_ETHERNET() { return false; }
+  // NOTE: named HAS_ETH() not HAS_ETHERNET() because the eModbus library defines
+  // HAS_ETHERNET as a preprocessor macro (options.h) — a method with that name would
+  // be textually rewritten to "1()" wherever both headers are visible.
+  virtual bool HAS_ETH() { return false; }
   virtual int ETH_PHY_TYPE_ID() { return -1; }
   virtual int ETH_PHY_ADDR_NUM() { return -1; }
   virtual gpio_num_t ETH_PHY_MDC_PIN() { return GPIO_NUM_NC; }

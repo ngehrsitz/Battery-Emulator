@@ -6,7 +6,7 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
-#include "../hal/hal.h"  // esp32hal->HAS_ETHERNET()
+#include "../hal/hal.h"  // esp32hal->HAS_ETH()
 #include "../wifi/wifi.h"
 #include "html_escape.h"
 #include "index_html.h"
@@ -559,7 +559,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "HAS_ETH_STYLE") {
     // Hide the "Enable WiFi" row on boards that don't have Ethernet — disabling WiFi
     // there would strand the user without a way to reach the webserver.
-    return esp32hal->HAS_ETHERNET() ? String("") : String("display:none");
+    return esp32hal->HAS_ETH() ? String("") : String("display:none");
   }
 
   if (var == "APPASSWORD") {

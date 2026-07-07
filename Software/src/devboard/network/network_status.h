@@ -1,7 +1,7 @@
 #ifndef NETWORK_STATUS_H
 #define NETWORK_STATUS_H
 
-#include <IPAddress.h>
+#include <WiFi.h>  // IPAddress + WiFiClient are all reached via WiFi.h in this project
 
 // Shared network-state helpers. Used wherever code needs "is any interface up?"
 // or "what IP do we display?" — abstracts over WiFi STA + optional Ethernet
