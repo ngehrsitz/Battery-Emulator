@@ -13,20 +13,44 @@ import argparse
 import json
 import re
 import sys
+from dataclasses import asdict, dataclass
 
 
-LINE_RE = re.compile(
-    r"^(RAM|Flash):.*used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes",
-    re.MULTILINE,
-)
+@dataclass
+class Section:
+    used_bytes: int
+    total_bytes: int
 
 
-def parse(text: str) -> dict[str, dict[str, int] | None]:
-    out: dict[str, dict[str, int] | None] = {"ram": None, "flash": None}
-    for m in LINE_RE.finditer(text):
-        kind = m.group(1).lower()
-        out[kind] = {"used_bytes": int(m.group(2)), "total_bytes": int(m.group(3))}
-    return out
+@dataclass
+class Size:
+    ram: Section | None
+    flash: Section | None
+
+
+@dataclass
+class BoardSize:
+    schema_version: int
+    pio_env: str
+    board_name: str
+    sha: str
+    flash: Section | None
+    ram: Section | None
+
+
+RAM_RE = re.compile(r"^RAM:.*used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes", re.MULTILINE)
+FLASH_RE = re.compile(r"^Flash:.*used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes", re.MULTILINE)
+
+
+def _match(regex: re.Pattern[str], text: str) -> Section | None:
+    m = regex.search(text)
+    if m is None:
+        return None
+    return Section(used_bytes=int(m.group(1)), total_bytes=int(m.group(2)))
+
+
+def parse(text: str) -> Size:
+    return Size(ram=_match(RAM_RE, text), flash=_match(FLASH_RE, text))
 
 
 def main() -> int:
@@ -37,26 +61,24 @@ def main() -> int:
     ap.add_argument("--out", required=True, help="Path to write sidecar JSON")
     args = ap.parse_args()
 
-    text = sys.stdin.read()
-
-    parsed = parse(text)
-    if parsed["flash"] is None and parsed["ram"] is None:
+    sizes = parse(sys.stdin.read())
+    if sizes.ram is None and sizes.flash is None:
         # Neither line found — checkprogsize probably didn't run. Fail loudly
         # so a broken producer surfaces at PR time instead of silently
         # emitting empty sidecars.
         print("parse_size: no Flash: or RAM: lines found on stdin", file=sys.stderr)
         return 2
 
-    doc = {
-        "schema_version": 1,
-        "pio_env": args.pio_env,
-        "board_name": args.board_name,
-        "sha": args.sha,
-        "flash": parsed["flash"],
-        "ram": parsed["ram"],
-    }
+    doc = BoardSize(
+        schema_version=1,
+        pio_env=args.pio_env,
+        board_name=args.board_name,
+        sha=args.sha,
+        flash=sizes.flash,
+        ram=sizes.ram,
+    )
     with open(args.out, "w", encoding="utf-8") as f:
-        json.dump(doc, f, indent=2)
+        json.dump(asdict(doc), f, indent=2)
         f.write("\n")
     return 0
 
