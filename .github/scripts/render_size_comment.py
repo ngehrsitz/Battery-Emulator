@@ -16,7 +16,7 @@ import pathlib
 import sys
 from dataclasses import dataclass
 
-from size_report import BoardSize, MemoryUsage
+from size_report import BoardSize, MemoryBytes
 
 
 STICKY_MARKER = "<!-- firmware-size-report -->"
@@ -63,10 +63,10 @@ def load_size_reports(root: str) -> dict[str, BoardSize]:
         try:
             with f.open(encoding="utf-8") as fh:
                 doc = json.load(fh)
-        except (OSError, json.JSONDecodeError) as exc:
+            board = BoardSize.from_dict(doc)
+        except (OSError, json.JSONDecodeError, KeyError) as exc:
             print(f"render_size_comment: skipping {f}: {exc}", file=sys.stderr)
             continue
-        board = BoardSize.from_dict(doc)
         out[board.pio_env] = board
     return out
 
@@ -89,31 +89,31 @@ def fmt_delta(delta: int | None) -> str:
     return f"{delta:+,}"
 
 
-def fmt_pct(usage: MemoryUsage | None) -> str:
-    if usage is None or not usage.total_bytes:
+def fmt_pct(usage: MemoryBytes | None) -> str:
+    if usage is None or not usage.total:
         return "—"
-    return f"{(usage.used_bytes / usage.total_bytes) * 100:.2f}%"
+    return f"{(usage.used / usage.total) * 100:.2f}%"
 
 
 def sort_key(env: str, pr: BoardSize | None) -> tuple[float, str]:
     """Sort by PR-side flash fill % desc; envs without PR data go last."""
-    if pr and pr.flash and pr.flash.total_bytes:
-        return (-(pr.flash.used_bytes / pr.flash.total_bytes), env)
+    if pr and pr.flash and pr.flash.total:
+        return (-(pr.flash.used / pr.flash.total), env)
     return (float("inf"), env)
 
 
-def flash_delta_cell(base: MemoryUsage | None, pr: MemoryUsage | None) -> str:
+def flash_delta_cell(base: MemoryBytes | None, pr: MemoryBytes | None) -> str:
     """Signed flash delta, plus ⚠️ if the board is already tight (>90%) and grew."""
     if base is None or pr is None:
         return "—"
-    delta = pr.used_bytes - base.used_bytes
+    delta = pr.used - base.used
     cell = fmt_delta(delta)
-    if delta > 0 and pr.total_bytes and (pr.used_bytes / pr.total_bytes) > WARN_FILL_THRESHOLD:
+    if delta > 0 and pr.total and (pr.used / pr.total) > WARN_FILL_THRESHOLD:
         cell += " ⚠️"
     return cell
 
 
-def ram_delta_cell(base: MemoryUsage | None, pr: MemoryUsage | None) -> str:
+def ram_delta_cell(base: MemoryBytes | None, pr: MemoryBytes | None) -> str:
     """Signed RAM delta, or — if either side is missing.
 
     No fill % for RAM: heap allocations dominate runtime RAM anyway, so
@@ -121,7 +121,7 @@ def ram_delta_cell(base: MemoryUsage | None, pr: MemoryUsage | None) -> str:
     """
     if base is None or pr is None:
         return "—"
-    return fmt_delta(pr.used_bytes - base.used_bytes)
+    return fmt_delta(pr.used - base.used)
 
 
 def _row_pr_missing(env: str, base: BoardSize | None) -> RowCells:
@@ -130,9 +130,9 @@ def _row_pr_missing(env: str, base: BoardSize | None) -> RowCells:
     return RowCells(
         board=(base.board_name if base else env),
         env=f"`{env}`",
-        base_flash=fmt_bytes(flash.used_bytes if flash else None),
+        base_flash=fmt_bytes(flash.used if flash else None),
         pr_flash="build failed",
-        max_flash=fmt_bytes(flash.total_bytes if flash else None),
+        max_flash=fmt_bytes(flash.total if flash else None),
         pr_pct="—",
         delta_flash="—",
         pr_ram="—",
@@ -146,11 +146,11 @@ def _row_base_missing(env: str, pr: BoardSize) -> RowCells:
         board=pr.board_name,
         env=f"`{env}`",
         base_flash="—",
-        pr_flash=fmt_bytes(pr.flash.used_bytes if pr.flash else None),
-        max_flash=fmt_bytes(pr.flash.total_bytes if pr.flash else None),
+        pr_flash=fmt_bytes(pr.flash.used if pr.flash else None),
+        max_flash=fmt_bytes(pr.flash.total if pr.flash else None),
         pr_pct=fmt_pct(pr.flash),
         delta_flash="(new)",
-        pr_ram=fmt_bytes(pr.ram.used_bytes if pr.ram else None),
+        pr_ram=fmt_bytes(pr.ram.used if pr.ram else None),
         delta_ram="(new)",
     )
 
@@ -160,12 +160,12 @@ def _row_normal(env: str, base: BoardSize, pr: BoardSize) -> RowCells:
     return RowCells(
         board=pr.board_name,
         env=f"`{env}`",
-        base_flash=fmt_bytes(base.flash.used_bytes if base.flash else None),
-        pr_flash=fmt_bytes(pr.flash.used_bytes if pr.flash else None),
-        max_flash=fmt_bytes(pr.flash.total_bytes if pr.flash else None),
+        base_flash=fmt_bytes(base.flash.used if base.flash else None),
+        pr_flash=fmt_bytes(pr.flash.used if pr.flash else None),
+        max_flash=fmt_bytes(pr.flash.total if pr.flash else None),
         pr_pct=fmt_pct(pr.flash),
         delta_flash=flash_delta_cell(base.flash, pr.flash),
-        pr_ram=fmt_bytes(pr.ram.used_bytes if pr.ram else None),
+        pr_ram=fmt_bytes(pr.ram.used if pr.ram else None),
         delta_ram=ram_delta_cell(base.ram, pr.ram),
     )
 

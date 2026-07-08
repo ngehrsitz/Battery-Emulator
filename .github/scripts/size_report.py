@@ -11,15 +11,15 @@ from dataclasses import dataclass
 
 
 @dataclass
-class MemoryUsage:
-    used_bytes: int
-    total_bytes: int
+class MemoryBytes:
+    used: int
+    total: int
 
     @classmethod
-    def from_dict(cls, d: dict | None) -> "MemoryUsage | None":
+    def from_dict(cls, d: dict | None) -> "MemoryBytes | None":
         if not d:
             return None
-        return cls(used_bytes=d["used_bytes"], total_bytes=d["total_bytes"])
+        return cls(used=d["used"], total=d["total"])
 
 
 @dataclass
@@ -28,8 +28,8 @@ class BoardSize:
     pio_env: str
     board_name: str
     sha: str
-    flash: MemoryUsage | None
-    ram: MemoryUsage | None
+    flash: MemoryBytes | None
+    ram: MemoryBytes | None
 
     @classmethod
     def from_dict(cls, d: dict) -> "BoardSize":
@@ -38,6 +38,6 @@ class BoardSize:
             pio_env=d["pio_env"],
             board_name=d["board_name"],
             sha=d["sha"],
-            flash=MemoryUsage.from_dict(d.get("flash")),
-            ram=MemoryUsage.from_dict(d.get("ram")),
+            flash=MemoryBytes.from_dict(d.get("flash")),
+            ram=MemoryBytes.from_dict(d.get("ram")),
         )

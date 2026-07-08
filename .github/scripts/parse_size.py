@@ -15,18 +15,18 @@ import re
 import sys
 from dataclasses import asdict
 
-from size_report import BoardSize, MemoryUsage
+from size_report import BoardSize, MemoryBytes
 
 
 RAM_RE = re.compile(r"^RAM:.*used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes", re.MULTILINE)
 FLASH_RE = re.compile(r"^Flash:.*used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes", re.MULTILINE)
 
 
-def _parse_usage(regex: re.Pattern[str], text: str) -> MemoryUsage | None:
+def _parse_usage(regex: re.Pattern[str], text: str) -> MemoryBytes | None:
     m = regex.search(text)
     if m is None:
         return None
-    return MemoryUsage(used_bytes=int(m.group(1)), total_bytes=int(m.group(2)))
+    return MemoryBytes(used=int(m.group(1)), total=int(m.group(2)))
 
 
 def main() -> int:
