@@ -241,7 +241,6 @@ def main() -> int:
     ap.add_argument("--base-branch", required=True)
     ap.add_argument("--base-sha", required=True)
     ap.add_argument("--head-sha", required=True)
-    ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
     base = load_size_reports(args.base_dir)
@@ -258,8 +257,7 @@ def main() -> int:
     else:
         body = render(base, pr, args.base_branch, args.base_sha, args.head_sha)
 
-    with open(args.out, "w", encoding="utf-8") as f:
-        f.write(body)
+    sys.stdout.write(body)
     return 0
 
 
