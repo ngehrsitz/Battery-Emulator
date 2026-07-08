@@ -22,26 +22,17 @@ from size_report import BoardSize, MemoryBytes
 STICKY_MARKER = "<!-- firmware-size-report -->"
 WARN_FILL_THRESHOLD = 0.90  # append ⚠️ when PR fill > 90% AND flash grew
 
-# Table columns. The header labels and the alignment separator row are
-# derived from this single list, so adding/removing a column can never
-# leave the header and the body out of sync. Field names on RowCells
-# below MUST stay in this same order — see _row().
-COLUMNS: list[tuple[str, str]] = [
-    ("Board",      "-"),
-    ("Env",        "-"),
-    ("Base flash", "-:"),
-    ("PR flash",   "-:"),
-    ("Max",        "-:"),
-    ("PR %",       "-:"),
-    ("Δ flash",    "-:"),
-    ("PR RAM",     "-:"),
-    ("Δ RAM",      "-:"),
-]
-
 
 @dataclass
 class RowCells:
-    """One rendered markdown cell per column. Field order matches COLUMNS."""
+    """One rendered markdown cell per column, plus the table's header/alignment.
+
+    The column schema lives entirely on this class: field order, header
+    labels, alignment markers, and body formatting are all in the three
+    adjacent methods below. Adding or removing a column means editing
+    a field, a header entry, an alignment entry, and a render entry —
+    all visible together, no cross-file sync required.
+    """
     board: str
     env: str
     base_flash: str
@@ -51,6 +42,23 @@ class RowCells:
     delta_flash: str
     pr_ram: str
     delta_ram: str
+
+    @staticmethod
+    def header() -> tuple[str, str]:
+        """Return (header row, alignment row) for the markdown table."""
+        return (
+            "| Board | Env | Base flash | PR flash | Max | PR % | Δ flash | PR RAM | Δ RAM |",
+            "| - | - | -: | -: | -: | -: | -: | -: | -: |",
+        )
+
+    def render(self) -> str:
+        """Format as a single markdown table row."""
+        return (
+            f"| {self.board} | {self.env} "
+            f"| {self.base_flash} | {self.pr_flash} | {self.max_flash} "
+            f"| {self.pr_pct} | {self.delta_flash} "
+            f"| {self.pr_ram} | {self.delta_ram} |"
+        )
 
 
 def load_size_reports(root: str) -> dict[str, BoardSize]:
@@ -170,16 +178,6 @@ def _row_normal(env: str, base: BoardSize, pr: BoardSize) -> RowCells:
     )
 
 
-def _row(cells: RowCells) -> str:
-    """Format a RowCells as a single markdown table row. Column order = COLUMNS."""
-    values = [
-        cells.board, cells.env, cells.base_flash, cells.pr_flash,
-        cells.max_flash, cells.pr_pct, cells.delta_flash,
-        cells.pr_ram, cells.delta_ram,
-    ]
-    return "| " + " | ".join(values) + " |"
-
-
 def render_row(env: str, base: BoardSize | None, pr: BoardSize | None) -> str:
     """Dispatch to the right case builder and format the resulting row."""
     if pr is None:
@@ -188,7 +186,7 @@ def render_row(env: str, base: BoardSize | None, pr: BoardSize | None) -> str:
         cells = _row_base_missing(env, pr)
     else:
         cells = _row_normal(env, base, pr)
-    return _row(cells)
+    return cells.render()
 
 
 def render(
@@ -219,8 +217,9 @@ def render(
         )
         lines.append("")
 
-    lines.append("| " + " | ".join(name for name, _ in COLUMNS) + " |")
-    lines.append("| " + " | ".join(align for _, align in COLUMNS) + " |")
+    header, sep = RowCells.header()
+    lines.append(header)
+    lines.append(sep)
 
     for env in envs:
         lines.append(render_row(env, base.get(env), pr.get(env)))
@@ -257,7 +256,7 @@ def main() -> int:
     else:
         body = render(base, pr, args.base_branch, args.base_sha, args.head_sha)
 
-    sys.stdout.write(body)
+    sys.stdout.buffer.write(body.encode("utf-8"))
     return 0
 
 
