@@ -31,22 +31,20 @@ def parse(text: str) -> dict[str, dict[str, int] | None]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--checkprogsize", required=True, help="Path to checkprogsize output file")
     ap.add_argument("--pio-env", required=True)
     ap.add_argument("--board-name", required=True)
     ap.add_argument("--sha", required=True)
     ap.add_argument("--out", required=True, help="Path to write sidecar JSON")
     args = ap.parse_args()
 
-    with open(args.checkprogsize, encoding="utf-8", errors="replace") as f:
-        text = f.read()
+    text = sys.stdin.read()
 
     parsed = parse(text)
     if parsed["flash"] is None and parsed["ram"] is None:
         # Neither line found — checkprogsize probably didn't run. Fail loudly
         # so a broken producer surfaces at PR time instead of silently
         # emitting empty sidecars.
-        print(f"parse_size: no Flash: or RAM: lines found in {args.checkprogsize}", file=sys.stderr)
+        print("parse_size: no Flash: or RAM: lines found on stdin", file=sys.stderr)
         return 2
 
     doc = {

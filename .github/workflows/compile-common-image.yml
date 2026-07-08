@@ -61,8 +61,7 @@ jobs:
       if: matrix.pio_env != 'compiler_warning_check'
       run: |
         pio run -e ${{ matrix.pio_env }} -t checkprogsize 2>&1 | tee checkprogsize.txt
-        python .github/scripts/parse_size.py \
-          --checkprogsize checkprogsize.txt \
+        cat checkprogsize.txt | python .github/scripts/parse_size.py \
           --pio-env "${{ matrix.pio_env }}" \
           --board-name "${{ matrix.board_name }}" \
           --sha "${{ github.event.pull_request.head.sha || github.sha }}" \
