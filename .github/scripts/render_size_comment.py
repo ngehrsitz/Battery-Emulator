@@ -197,7 +197,6 @@ def render(
     base_branch: str,
     base_sha: str,
     head_sha: str,
-    no_baseline: bool,
 ) -> str:
     envs = sorted(set(base) | set(pr), key=lambda e: sort_key(e, pr.get(e)))
 
@@ -207,10 +206,11 @@ def render(
         "",
     ]
 
-    if no_baseline:
+    if not base:
         lines.append(
-            f"> No successful compile run found on base branch `{base_branch}` yet; "
-            "showing absolute sizes only. Deltas will appear once `main` has been built."
+            f"> No base-branch size reports available for `{base_branch}` yet; "
+            "showing absolute sizes only. Deltas will appear once a compile run "
+            "on the base branch has published size artifacts."
         )
         lines.append("")
     else:
@@ -241,12 +241,10 @@ def main() -> int:
     ap.add_argument("--base-branch", required=True)
     ap.add_argument("--base-sha", required=True)
     ap.add_argument("--head-sha", required=True)
-    ap.add_argument("--no-baseline", default="false")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
-    no_baseline = args.no_baseline.lower() == "true"
-    base = {} if no_baseline else load_size_reports(args.base_dir)
+    base = load_size_reports(args.base_dir)
     pr = load_size_reports(args.pr_dir)
 
     if not pr and not base:
@@ -258,7 +256,7 @@ def main() -> int:
             "> No size reports found in either the PR build or the base build.\n"
         )
     else:
-        body = render(base, pr, args.base_branch, args.base_sha, args.head_sha, no_baseline)
+        body = render(base, pr, args.base_branch, args.base_sha, args.head_sha)
 
     with open(args.out, "w", encoding="utf-8") as f:
         f.write(body)
