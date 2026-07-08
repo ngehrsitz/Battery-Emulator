@@ -32,7 +32,7 @@ void Logging::add_timestamp(size_t size) {
   }
 
   offset += min(MAX_LENGTH_TIME_STR - 1,
-                snprintf(timestr, MAX_LENGTH_TIME_STR, "%lu.%03lu ", currentTime / 1000, currentTime % 1000));
+                snprintf(timestr, MAX_LENGTH_TIME_STR, "%8lu.%03lu ", currentTime / 1000, currentTime % 1000));
 
   if (datalayer.system.info.web_logging_active && !datalayer.system.info.can_logging_active) {
     datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
