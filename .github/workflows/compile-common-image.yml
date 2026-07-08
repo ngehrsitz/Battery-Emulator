@@ -64,8 +64,7 @@ jobs:
         cat checkprogsize.txt | python .github/scripts/parse_size.py \
           --pio-env "${{ matrix.pio_env }}" \
           --board-name "${{ matrix.board_name }}" \
-          --sha "${{ github.event.pull_request.head.sha || github.sha }}" \
-          --out "${{ matrix.pio_env }}.size.json"
+          --sha "${{ github.event.pull_request.head.sha || github.sha }}"
 
     #rename firmware.bin to contain pr number and commit short sha for easier location after saved on disk
     - name: Rename firmware.bin with PR number and commit short SHA

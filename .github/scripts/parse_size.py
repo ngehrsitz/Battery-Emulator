@@ -58,7 +58,6 @@ def main() -> int:
     ap.add_argument("--pio-env", required=True)
     ap.add_argument("--board-name", required=True)
     ap.add_argument("--sha", required=True)
-    ap.add_argument("--out", required=True, help="Path to write size report JSON")
     args = ap.parse_args()
 
     sizes = parse(sys.stdin.read())
@@ -77,7 +76,7 @@ def main() -> int:
         flash=sizes.flash,
         ram=sizes.ram,
     )
-    with open(args.out, "w", encoding="utf-8") as f:
+    with open(f"{args.pio_env}.size.json", "w", encoding="utf-8") as f:
         json.dump(asdict(doc), f, indent=2)
         f.write("\n")
     return 0
