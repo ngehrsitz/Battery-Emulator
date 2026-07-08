@@ -38,6 +38,12 @@
 #error You must select a target hardware!
 #endif
 
+// TEMP: deliberately break the build for two boards to exercise the
+// measure-firmware-size workflow's partial-failure handling. Revert this.
+#if defined(HW_STARK) || defined(HW_BECOM)
+#error Intentional build break for size-check workflow test (HW_STARK, HW_BECOM)
+#endif
+
 // The current software version, shown on webserver
 const char* version_number = "10.14.dev";
 
