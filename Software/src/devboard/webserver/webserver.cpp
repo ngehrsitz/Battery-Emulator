@@ -1,4 +1,5 @@
 #include "webserver.h"
+#include <LittleFS.h>
 #include <Preferences.h>
 #include <ctime>
 #include <vector>
@@ -186,7 +187,21 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
   });
 }
 
+// Mount the LittleFS partition that holds the pre-gzipped web UI assets.
+// The partition label "spiffs" matches both min_spiffs.csv and default_16MB.csv;
+// the same partition is written by ElegantOTA when mode=fs is uploaded.
+// formatOnFail=true handles the first boot after the LittleFS migration ships
+// (partition may still be SPIFFS-formatted or unformatted) so the device stays
+// bootable while the user OTA-uploads the FS image.
+static void webserver_fs_init() {
+  if (!LittleFS.begin(/*formatOnFail=*/true, "/littlefs", 10, "spiffs")) {
+    set_event(EVENT_FS_MOUNT_FAILED, 0);
+  }
+}
+
 void init_webserver() {
+  webserver_fs_init();
+
   if (webserver_auth_is_ready()) {
     web_auth_middleware.setUsername(http_username.c_str());
     web_auth_middleware.setPassword(http_password.c_str());
@@ -210,6 +225,22 @@ void init_webserver() {
   // Route for firmware info from ota update page
   def_route_with_auth("/GetFirmwareInfo", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
+  });
+
+  // Diagnostic: LittleFS mount state and byte counts. Returns {total,used,free}
+  // in bytes; all three are 0 if the FS failed to mount (EVENT_FS_MOUNT_FAILED
+  // is also set in that case, visible on the events page).
+  def_route_with_auth("/api/fs_info", server, HTTP_GET, [](AsyncWebServerRequest* request) {
+    static JsonDocument doc;
+    doc.clear();
+    const size_t total = LittleFS.totalBytes();
+    const size_t used = LittleFS.usedBytes();
+    doc["total"] = total;
+    doc["used"] = used;
+    doc["free"] = total > used ? total - used : 0;
+    String body;
+    serializeJson(doc, body);
+    request->send(200, "application/json", body);
   });
 
   // Route for root / web page

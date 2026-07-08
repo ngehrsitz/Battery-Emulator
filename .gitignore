@@ -37,3 +37,7 @@ USER_SECRETS.h
 
 # Ignore generated ESP-IDF component manifest
 Software/idf_component.yml
+
+# LittleFS staging: web UI assets are re-gzipped from web_data/ui/ on every build
+# by Software/src/lib/build_webfs.py. Only the source tree is checked in.
+web_data/ui_staged/

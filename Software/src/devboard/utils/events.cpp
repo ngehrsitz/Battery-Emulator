@@ -140,6 +140,7 @@ void init_events(void) {
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SD_INIT_FAILED].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_FS_MOUNT_FAILED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_PERIODIC_BMS_RESET].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BMS_RESET_REQ_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BMS_RESET_REQ_FAIL].level = EVENT_LEVEL_INFO;
@@ -417,6 +418,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "User requested stop, either via equipment stop circuit or webserver Open Contactor button";
     case EVENT_SD_INIT_FAILED:
       return "SD card initialization failed, check hardware. Power must be removed to reset the SD card.";
+    case EVENT_FS_MOUNT_FAILED:
+      return "LittleFS filesystem mount failed. Web UI assets are unavailable; upload a fresh FS image via /update?mode=fs.";
     case EVENT_PERIODIC_BMS_RESET:
       return "BMS reset event completed.";
     case EVENT_PERIODIC_BMS_RESET_FAILURE:

@@ -54,6 +54,11 @@ jobs:
     - name: Install PlatformIO Core
       run: pip install --upgrade platformio
 
+    - name: Install zopfli
+      # Used by Software/src/lib/build_webfs.py to pre-gzip web_data/ui/
+      # assets into web_data/ui_staged/ before every PlatformIO build.
+      run: sudo apt-get install -y zopfli
+
     - name: Build image for ${{ matrix.board_name }}
       run: pio run -e ${{ matrix.pio_env }}
 
