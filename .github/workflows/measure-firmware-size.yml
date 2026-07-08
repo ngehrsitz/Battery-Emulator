@@ -37,70 +37,65 @@ jobs:
         pattern: "*.bin"
         merge-multiple: true
 
-    - name: Resolve PR context (number, base branch, base SHA)
-      id: prctx
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-      run: |
-        # commits/{sha}/pulls works for fork PRs where workflow_run.pull_requests is empty.
-        PR_JSON=$(gh api "repos/${{ github.repository }}/commits/${HEAD_SHA}/pulls" \
-                    -H "Accept: application/vnd.github+json")
-        PR_NUMBER=$(echo "$PR_JSON" | jq -r '.[0].number // empty')
-        BASE_BRANCH=$(echo "$PR_JSON" | jq -r '.[0].base.ref // empty')
-        BASE_SHA=$(echo "$PR_JSON" | jq -r '.[0].base.sha // empty')
-        if [ -z "$PR_NUMBER" ]; then
-          echo "No open PR found for head SHA $HEAD_SHA; nothing to comment on."
-          echo "skip=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "skip=false" >> "$GITHUB_OUTPUT"
-          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
-          echo "base_branch=$BASE_BRANCH" >> "$GITHUB_OUTPUT"
-          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
-        fi
+    - name: Resolve PR context and base compile run
+      id: ctx
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const head_sha = context.payload.workflow_run.head_sha;
+          const { owner, repo } = context.repo;
 
-    - name: Resolve latest successful base-branch compile run
-      id: baserun
-      if: steps.prctx.outputs.skip != 'true'
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        BASE_BRANCH: ${{ steps.prctx.outputs.base_branch }}
-      run: |
-        RUN_ID=$(gh api \
-          "repos/${{ github.repository }}/actions/workflows/compile-common-image.yml/runs?branch=${BASE_BRANCH}&status=success&event=push&per_page=1" \
-          --jq '.workflow_runs[0].id // empty')
-        echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
-        if [ -z "$RUN_ID" ]; then
-          echo "no_baseline=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "no_baseline=false" >> "$GITHUB_OUTPUT"
-        fi
+          // commits/{sha}/pulls works for fork PRs too, unlike workflow_run.pull_requests.
+          const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+            owner, repo, commit_sha: head_sha,
+          });
+          const pr = prs[0];
+          if (!pr) {
+            core.info(`No PR found for head SHA ${head_sha}; nothing to comment on.`);
+            return;
+          }
+
+          // Most recent successful push-triggered compile run on the PR's base branch.
+          const { data: runs } = await github.rest.actions.listWorkflowRuns({
+            owner, repo,
+            workflow_id: 'compile-common-image.yml',
+            branch: pr.base.ref,
+            event: 'push',
+            status: 'success',
+            per_page: 1,
+          });
+
+          core.setOutput('pr_number',   pr.number);
+          core.setOutput('base_branch', pr.base.ref);
+          core.setOutput('base_sha',    pr.base.sha);
+          core.setOutput('run_id',      runs.workflow_runs[0]?.id ?? '');
 
     - name: Download base-branch artifacts
-      if: steps.prctx.outputs.skip != 'true' && steps.baserun.outputs.no_baseline == 'false'
+      if: steps.ctx.outputs.pr_number != '' && steps.ctx.outputs.run_id != ''
       uses: actions/download-artifact@v4
       with:
         path: ./base
-        run-id: ${{ steps.baserun.outputs.run_id }}
+        run-id: ${{ steps.ctx.outputs.run_id }}
         github-token: ${{ secrets.GITHUB_TOKEN }}
         pattern: "*.bin"
         merge-multiple: true
 
     - name: Render comment
-      if: steps.prctx.outputs.skip != 'true'
+      if: steps.ctx.outputs.pr_number != ''
       run: |
+        NO_BASELINE=$([ -z "${{ steps.ctx.outputs.run_id }}" ] && echo true || echo false)
         python .github/scripts/render_size_comment.py \
           --pr-dir ./pr \
           --base-dir ./base \
-          --base-branch "${{ steps.prctx.outputs.base_branch }}" \
-          --base-sha    "${{ steps.prctx.outputs.base_sha }}" \
+          --base-branch "${{ steps.ctx.outputs.base_branch }}" \
+          --base-sha    "${{ steps.ctx.outputs.base_sha }}" \
           --head-sha    "${{ github.event.workflow_run.head_sha }}" \
-          --no-baseline "${{ steps.baserun.outputs.no_baseline }}" \
+          --no-baseline "$NO_BASELINE" \
           --out comment.md
-        echo "${{ steps.prctx.outputs.pr_number }}" > pr_number.txt
+        echo "${{ steps.ctx.outputs.pr_number }}" > pr_number.txt
 
     - name: Upload firmware size report
-      if: steps.prctx.outputs.skip != 'true'
+      if: steps.ctx.outputs.pr_number != ''
       uses: actions/upload-artifact@v4
       with:
         name: comment-for-pr
