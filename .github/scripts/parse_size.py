@@ -13,15 +13,9 @@ import argparse
 import json
 import re
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 
 from size_report import BoardSize, Section
-
-
-@dataclass
-class Size:
-    ram: Section | None
-    flash: Section | None
 
 
 RAM_RE = re.compile(r"^RAM:.*used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes", re.MULTILINE)
@@ -35,10 +29,6 @@ def _match(regex: re.Pattern[str], text: str) -> Section | None:
     return Section(used_bytes=int(m.group(1)), total_bytes=int(m.group(2)))
 
 
-def parse(text: str) -> Size:
-    return Size(ram=_match(RAM_RE, text), flash=_match(FLASH_RE, text))
-
-
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pio-env", required=True)
@@ -46,8 +36,10 @@ def main() -> int:
     ap.add_argument("--sha", required=True)
     args = ap.parse_args()
 
-    sizes = parse(sys.stdin.read())
-    if sizes.ram is None and sizes.flash is None:
+    text = sys.stdin.read()
+    ram = _match(RAM_RE, text)
+    flash = _match(FLASH_RE, text)
+    if ram is None and flash is None:
         # Neither line found — checkprogsize probably didn't run. Fail loudly
         # so a broken producer surfaces at PR time instead of silently
         # emitting empty size reports.
@@ -59,8 +51,8 @@ def main() -> int:
         pio_env=args.pio_env,
         board_name=args.board_name,
         sha=args.sha,
-        flash=sizes.flash,
-        ram=sizes.ram,
+        flash=flash,
+        ram=ram,
     )
     with open(f"{args.pio_env}.size.json", "w", encoding="utf-8") as f:
         json.dump(asdict(doc), f, indent=2)
