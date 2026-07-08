@@ -11,12 +11,12 @@ from dataclasses import dataclass
 
 
 @dataclass
-class Section:
+class MemoryUsage:
     used_bytes: int
     total_bytes: int
 
     @classmethod
-    def from_dict(cls, d: dict | None) -> "Section | None":
+    def from_dict(cls, d: dict | None) -> "MemoryUsage | None":
         if not d:
             return None
         return cls(used_bytes=d["used_bytes"], total_bytes=d["total_bytes"])
@@ -28,8 +28,8 @@ class BoardSize:
     pio_env: str
     board_name: str
     sha: str
-    flash: Section | None
-    ram: Section | None
+    flash: MemoryUsage | None
+    ram: MemoryUsage | None
 
     @classmethod
     def from_dict(cls, d: dict) -> "BoardSize":
@@ -38,6 +38,6 @@ class BoardSize:
             pio_env=d["pio_env"],
             board_name=d["board_name"],
             sha=d["sha"],
-            flash=Section.from_dict(d.get("flash")),
-            ram=Section.from_dict(d.get("ram")),
+            flash=MemoryUsage.from_dict(d.get("flash")),
+            ram=MemoryUsage.from_dict(d.get("ram")),
         )

@@ -16,7 +16,7 @@ import pathlib
 import sys
 from dataclasses import dataclass
 
-from size_report import BoardSize, Section
+from size_report import BoardSize, MemoryUsage
 
 
 STICKY_MARKER = "<!-- firmware-size-report -->"
@@ -89,10 +89,10 @@ def fmt_delta(delta: int | None) -> str:
     return f"{delta:+,}"
 
 
-def fmt_pct(section: Section | None) -> str:
-    if section is None or not section.total_bytes:
+def fmt_pct(usage: MemoryUsage | None) -> str:
+    if usage is None or not usage.total_bytes:
         return "—"
-    return f"{(section.used_bytes / section.total_bytes) * 100:.2f}%"
+    return f"{(usage.used_bytes / usage.total_bytes) * 100:.2f}%"
 
 
 def sort_key(env: str, pr: BoardSize | None) -> tuple[float, str]:
@@ -102,7 +102,7 @@ def sort_key(env: str, pr: BoardSize | None) -> tuple[float, str]:
     return (float("inf"), env)
 
 
-def flash_delta_cell(base: Section | None, pr: Section | None) -> str:
+def flash_delta_cell(base: MemoryUsage | None, pr: MemoryUsage | None) -> str:
     """Signed flash delta, plus ⚠️ if the board is already tight (>90%) and grew."""
     if base is None or pr is None:
         return "—"
@@ -113,7 +113,7 @@ def flash_delta_cell(base: Section | None, pr: Section | None) -> str:
     return cell
 
 
-def ram_delta_cell(base: Section | None, pr: Section | None) -> str:
+def ram_delta_cell(base: MemoryUsage | None, pr: MemoryUsage | None) -> str:
     """Signed RAM delta, or — if either side is missing.
 
     No fill % for RAM: heap allocations dominate runtime RAM anyway, so
