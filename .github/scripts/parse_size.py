@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parse `pio run -t checkprogsize` output into a per-env size sidecar.
+"""Parse `pio run -t checkprogsize` output into a per-env size report.
 
 Consumed by .github/workflows/measure-firmware-size.yml to produce a
 firmware-size PR comment without rebuilding.
@@ -58,14 +58,14 @@ def main() -> int:
     ap.add_argument("--pio-env", required=True)
     ap.add_argument("--board-name", required=True)
     ap.add_argument("--sha", required=True)
-    ap.add_argument("--out", required=True, help="Path to write sidecar JSON")
+    ap.add_argument("--out", required=True, help="Path to write size report JSON")
     args = ap.parse_args()
 
     sizes = parse(sys.stdin.read())
     if sizes.ram is None and sizes.flash is None:
         # Neither line found — checkprogsize probably didn't run. Fail loudly
         # so a broken producer surfaces at PR time instead of silently
-        # emitting empty sidecars.
+        # emitting empty size reports.
         print("parse_size: no Flash: or RAM: lines found on stdin", file=sys.stderr)
         return 2
 

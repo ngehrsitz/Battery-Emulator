@@ -57,7 +57,7 @@ jobs:
     - name: Build image for ${{ matrix.board_name }}
       run: pio run -e ${{ matrix.pio_env }}
 
-    - name: Capture size sidecar for ${{ matrix.board_name }}
+    - name: Capture size report for ${{ matrix.board_name }}
       if: matrix.pio_env != 'compiler_warning_check'
       run: |
         pio run -e ${{ matrix.pio_env }} -t checkprogsize 2>&1 | tee checkprogsize.txt

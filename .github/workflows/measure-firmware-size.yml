@@ -1,6 +1,6 @@
 name: ⚖️ Measure firmware size
 
-# Runs as a consumer of the compile workflow's per-board size sidecars
+# Runs as a consumer of the compile workflow's per-board size reports
 # (${{ matrix.pio_env }}.size.json inside each per-board artifact).
 # No PlatformIO, no rebuilds — just download, diff, and comment.
 
@@ -17,7 +17,7 @@ jobs:
   measure:
     # Only when the triggering compile run was itself started by a PR,
     # and it didn't get cancelled outright. Individual board failures
-    # are tolerated — the render script handles missing sidecars.
+    # are tolerated — the render script handles missing size reports.
     if: >
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion != 'cancelled'

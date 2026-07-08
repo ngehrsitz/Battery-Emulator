@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a firmware-size PR comment from base-side and PR-side size sidecars.
+"""Render a firmware-size PR comment from base-side and PR-side size reports.
 
 Consumed by .github/workflows/measure-firmware-size.yml. Each side is a
 directory (potentially with subdirectories from `merge-multiple: true`)
@@ -20,8 +20,8 @@ STICKY_MARKER = "<!-- firmware-size-report -->"
 WARN_FILL_THRESHOLD = 0.90  # append ⚠️ when PR fill > 90% AND flash grew
 
 
-def load_sidecars(root: str) -> dict[str, dict]:
-    """Return {pio_env: sidecar_dict} for every *.size.json under root."""
+def load_size_reports(root: str) -> dict[str, dict]:
+    """Return {pio_env: report_dict} for every *.size.json under root."""
     out: dict[str, dict] = {}
     p = pathlib.Path(root)
     if not p.exists():
@@ -75,7 +75,7 @@ def render_row(env: str, base: dict | None, pr: dict | None) -> str:
     board = (pr or base or {}).get("board_name", env)
 
     if pr is None:
-        # PR-side sidecar missing → build failed on PR head for this env.
+        # PR-side size report missing → build failed on PR head for this env.
         # Leave the PR % column blank; we can't report a percentage we don't have.
         base_flash = (base or {}).get("flash") or {}
         return (
@@ -90,7 +90,7 @@ def render_row(env: str, base: dict | None, pr: dict | None) -> str:
     pr_pct_str = fmt_pct(pr_used, pr_total)
 
     if base is None:
-        # No base-side sidecar — new board, or base build failed for this env.
+        # No base-side size report — new board, or base build failed for this env.
         delta_cell = "(new)"
         base_used_cell = "—"
     else:
@@ -185,8 +185,8 @@ def main() -> int:
     args = ap.parse_args()
 
     no_baseline = args.no_baseline.lower() == "true"
-    base = {} if no_baseline else load_sidecars(args.base_dir)
-    pr = load_sidecars(args.pr_dir)
+    base = {} if no_baseline else load_size_reports(args.base_dir)
+    pr = load_size_reports(args.pr_dir)
 
     if not pr and not base:
         # Nothing to say. Emit a minimal note so the sticky comment
@@ -194,7 +194,7 @@ def main() -> int:
         body = (
             f"{STICKY_MARKER}\n"
             "## Firmware size report\n\n"
-            "> No size sidecars found in either the PR build or the base build.\n"
+            "> No size reports found in either the PR build or the base build.\n"
         )
     else:
         body = render(base, pr, args.base_branch, args.base_sha, args.head_sha, no_baseline)
