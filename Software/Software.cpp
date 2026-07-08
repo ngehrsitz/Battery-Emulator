@@ -645,7 +645,7 @@ void setup() {
       xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
                               esp32hal->WIFICORE());
     } else {
-      logging.println("MQTT failed to initialize. MQTT will be disabled.");
+      logging.println("MQTT failed to initialize.");
     }
   }
 
