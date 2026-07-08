@@ -15,27 +15,13 @@ import re
 import sys
 from dataclasses import asdict, dataclass
 
-
-@dataclass
-class Section:
-    used_bytes: int
-    total_bytes: int
+from size_report import BoardSize, Section
 
 
 @dataclass
 class Size:
     ram: Section | None
     flash: Section | None
-
-
-@dataclass
-class BoardSize:
-    schema_version: int
-    pio_env: str
-    board_name: str
-    sha: str
-    flash: Section | None
-    ram: Section | None
 
 
 RAM_RE = re.compile(r"^RAM:.*used\s+(\d+)\s+bytes\s+from\s+(\d+)\s+bytes", re.MULTILINE)

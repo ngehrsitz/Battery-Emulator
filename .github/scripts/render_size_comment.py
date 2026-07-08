@@ -14,15 +14,48 @@ import argparse
 import json
 import pathlib
 import sys
+from dataclasses import dataclass
+
+from size_report import BoardSize, Section
 
 
 STICKY_MARKER = "<!-- firmware-size-report -->"
 WARN_FILL_THRESHOLD = 0.90  # append ⚠️ when PR fill > 90% AND flash grew
 
+# Table columns. The header labels and the alignment separator row are
+# derived from this single list, so adding/removing a column can never
+# leave the header and the body out of sync. Field names on RowCells
+# below MUST stay in this same order — see _row().
+COLUMNS: list[tuple[str, str]] = [
+    ("Board",      "-"),
+    ("Env",        "-"),
+    ("Base flash", "-:"),
+    ("PR flash",   "-:"),
+    ("Max",        "-:"),
+    ("PR %",       "-:"),
+    ("Δ flash",    "-:"),
+    ("PR RAM",     "-:"),
+    ("Δ RAM",      "-:"),
+]
 
-def load_size_reports(root: str) -> dict[str, dict]:
-    """Return {pio_env: report_dict} for every *.size.json under root."""
-    out: dict[str, dict] = {}
+
+@dataclass
+class RowCells:
+    """One rendered markdown cell per column. Field order matches COLUMNS."""
+    board: str
+    env: str
+    base_flash: str
+    pr_flash: str
+    max_flash: str
+    pr_pct: str
+    delta_flash: str
+    pr_ram: str
+    delta_ram: str
+
+
+def load_size_reports(root: str) -> dict[str, BoardSize]:
+    """Return {pio_env: BoardSize} for every *.size.json under root."""
+    out: dict[str, BoardSize] = {}
     p = pathlib.Path(root)
     if not p.exists():
         return out
@@ -30,11 +63,11 @@ def load_size_reports(root: str) -> dict[str, dict]:
         try:
             with f.open(encoding="utf-8") as fh:
                 doc = json.load(fh)
-        except (OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"render_size_comment: skipping {f}: {exc}", file=sys.stderr)
             continue
-        env = doc.get("pio_env")
-        if env:
-            out[env] = doc
+        board = BoardSize.from_dict(doc)
+        out[board.pio_env] = board
     return out
 
 
@@ -56,81 +89,111 @@ def fmt_delta(delta: int | None) -> str:
     return f"{delta:+,}"
 
 
-def fmt_pct(used: int | None, total: int | None) -> str:
-    if used is None or not total:
+def fmt_pct(section: Section | None) -> str:
+    if section is None or not section.total_bytes:
         return "—"
-    return f"{(used / total) * 100:.2f}%"
+    return f"{(section.used_bytes / section.total_bytes) * 100:.2f}%"
 
 
-def sort_key(env: str, pr: dict | None) -> tuple[float, str]:
+def sort_key(env: str, pr: BoardSize | None) -> tuple[float, str]:
     """Sort by PR-side flash fill % desc; envs without PR data go last."""
-    if pr and pr.get("flash"):
-        fl = pr["flash"]
-        if fl.get("total_bytes"):
-            return (-(fl["used_bytes"] / fl["total_bytes"]), env)
+    if pr and pr.flash and pr.flash.total_bytes:
+        return (-(pr.flash.used_bytes / pr.flash.total_bytes), env)
     return (float("inf"), env)
 
 
-def render_row(env: str, base: dict | None, pr: dict | None) -> str:
-    board = (pr or base or {}).get("board_name", env)
+def flash_delta_cell(base: Section | None, pr: Section | None) -> str:
+    """Signed flash delta, plus ⚠️ if the board is already tight (>90%) and grew."""
+    if base is None or pr is None:
+        return "—"
+    delta = pr.used_bytes - base.used_bytes
+    cell = fmt_delta(delta)
+    if delta > 0 and pr.total_bytes and (pr.used_bytes / pr.total_bytes) > WARN_FILL_THRESHOLD:
+        cell += " ⚠️"
+    return cell
 
-    if pr is None:
-        # PR-side size report missing → build failed on PR head for this env.
-        # Leave the PR % column blank; we can't report a percentage we don't have.
-        base_flash = (base or {}).get("flash") or {}
-        return (
-            f"| {board} | `{env}` | {fmt_bytes(base_flash.get('used_bytes'))} "
-            f"| build failed | {fmt_bytes(base_flash.get('total_bytes'))} "
-            f"| — | — | — | — |"
-        )
 
-    pr_flash = pr.get("flash") or {}
-    pr_used = pr_flash.get("used_bytes")
-    pr_total = pr_flash.get("total_bytes")
-    pr_pct_str = fmt_pct(pr_used, pr_total)
+def ram_delta_cell(base: Section | None, pr: Section | None) -> str:
+    """Signed RAM delta, or — if either side is missing.
 
-    if base is None:
-        # No base-side size report — new board, or base build failed for this env.
-        delta_cell = "(new)"
-        base_used_cell = "—"
-    else:
-        base_flash = base.get("flash") or {}
-        base_used = base_flash.get("used_bytes")
-        base_used_cell = fmt_bytes(base_used)
-        if pr_used is not None and base_used is not None:
-            delta = pr_used - base_used
-            delta_cell = fmt_delta(delta)
-            # ⚠️ when the board is already tight (>90% full) and it grew.
-            if delta > 0 and pr_total and (pr_used / pr_total) > WARN_FILL_THRESHOLD:
-                delta_cell += " ⚠️"
-        else:
-            delta_cell = "—"
+    No fill % for RAM: heap allocations dominate runtime RAM anyway, so
+    absolute deltas are what reviewers care about.
+    """
+    if base is None or pr is None:
+        return "—"
+    return fmt_delta(pr.used_bytes - base.used_bytes)
 
-    # RAM columns (base used, pr used, delta) — no fill % for RAM; the
-    # heap allocations dominate runtime RAM anyway, so absolute deltas are
-    # what reviewers care about.
-    pr_ram = pr.get("ram") or {}
-    pr_ram_used = pr_ram.get("used_bytes")
-    if base and base.get("ram") and pr_ram_used is not None:
-        base_ram_used = base["ram"].get("used_bytes")
-        if base_ram_used is not None:
-            ram_delta = fmt_delta(pr_ram_used - base_ram_used)
-        else:
-            ram_delta = "—"
-    else:
-        ram_delta = "—" if base else "(new)"
-    ram_pr_cell = fmt_bytes(pr_ram_used)
 
-    return (
-        f"| {board} | `{env}` | {base_used_cell} | {fmt_bytes(pr_used)} "
-        f"| {fmt_bytes(pr_total)} | {pr_pct_str} | {delta_cell} "
-        f"| {ram_pr_cell} | {ram_delta} |"
+def _row_pr_missing(env: str, base: BoardSize | None) -> RowCells:
+    """PR-side build failed for this env — show base numbers, blank PR side."""
+    flash = base.flash if base else None
+    return RowCells(
+        board=(base.board_name if base else env),
+        env=f"`{env}`",
+        base_flash=fmt_bytes(flash.used_bytes if flash else None),
+        pr_flash="build failed",
+        max_flash=fmt_bytes(flash.total_bytes if flash else None),
+        pr_pct="—",
+        delta_flash="—",
+        pr_ram="—",
+        delta_ram="—",
     )
 
 
+def _row_base_missing(env: str, pr: BoardSize) -> RowCells:
+    """No base report — new board, or base build failed. Mark deltas as (new)."""
+    return RowCells(
+        board=pr.board_name,
+        env=f"`{env}`",
+        base_flash="—",
+        pr_flash=fmt_bytes(pr.flash.used_bytes if pr.flash else None),
+        max_flash=fmt_bytes(pr.flash.total_bytes if pr.flash else None),
+        pr_pct=fmt_pct(pr.flash),
+        delta_flash="(new)",
+        pr_ram=fmt_bytes(pr.ram.used_bytes if pr.ram else None),
+        delta_ram="(new)",
+    )
+
+
+def _row_normal(env: str, base: BoardSize, pr: BoardSize) -> RowCells:
+    """Both builds succeeded — show sizes, deltas, and flag if tight+growing."""
+    return RowCells(
+        board=pr.board_name,
+        env=f"`{env}`",
+        base_flash=fmt_bytes(base.flash.used_bytes if base.flash else None),
+        pr_flash=fmt_bytes(pr.flash.used_bytes if pr.flash else None),
+        max_flash=fmt_bytes(pr.flash.total_bytes if pr.flash else None),
+        pr_pct=fmt_pct(pr.flash),
+        delta_flash=flash_delta_cell(base.flash, pr.flash),
+        pr_ram=fmt_bytes(pr.ram.used_bytes if pr.ram else None),
+        delta_ram=ram_delta_cell(base.ram, pr.ram),
+    )
+
+
+def _row(cells: RowCells) -> str:
+    """Format a RowCells as a single markdown table row. Column order = COLUMNS."""
+    values = [
+        cells.board, cells.env, cells.base_flash, cells.pr_flash,
+        cells.max_flash, cells.pr_pct, cells.delta_flash,
+        cells.pr_ram, cells.delta_ram,
+    ]
+    return "| " + " | ".join(values) + " |"
+
+
+def render_row(env: str, base: BoardSize | None, pr: BoardSize | None) -> str:
+    """Dispatch to the right case builder and format the resulting row."""
+    if pr is None:
+        cells = _row_pr_missing(env, base)
+    elif base is None:
+        cells = _row_base_missing(env, pr)
+    else:
+        cells = _row_normal(env, base, pr)
+    return _row(cells)
+
+
 def render(
-    base: dict[str, dict],
-    pr: dict[str, dict],
+    base: dict[str, BoardSize],
+    pr: dict[str, BoardSize],
     base_branch: str,
     base_sha: str,
     head_sha: str,
@@ -156,10 +219,8 @@ def render(
         )
         lines.append("")
 
-    lines.append(
-        "| Board | Env | Base flash | PR flash | Max | PR % | Δ flash | PR RAM | Δ RAM |"
-    )
-    lines.append("| - | - | -: | -: | -: | -: | -: | -: | -: |")
+    lines.append("| " + " | ".join(name for name, _ in COLUMNS) + " |")
+    lines.append("| " + " | ".join(align for _, align in COLUMNS) + " |")
 
     for env in envs:
         lines.append(render_row(env, base.get(env), pr.get(env)))
