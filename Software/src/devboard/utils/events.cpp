@@ -419,7 +419,8 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_SD_INIT_FAILED:
       return "SD card initialization failed, check hardware. Power must be removed to reset the SD card.";
     case EVENT_FS_MOUNT_FAILED:
-      return "LittleFS filesystem mount failed. Web UI assets are unavailable; upload a fresh FS image via /update?mode=fs.";
+      return "LittleFS filesystem mount failed. Web UI assets are unavailable; upload a fresh FS image via "
+             "/update?mode=fs.";
     case EVENT_PERIODIC_BMS_RESET:
       return "BMS reset event completed.";
     case EVENT_PERIODIC_BMS_RESET_FAILURE:

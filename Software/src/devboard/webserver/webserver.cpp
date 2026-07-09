@@ -1,5 +1,7 @@
 #include "webserver.h"
+#ifndef SMALL_FLASH_DEVICE
 #include <LittleFS.h>
+#endif
 #include <Preferences.h>
 #include <ctime>
 #include <vector>
@@ -193,10 +195,17 @@ void def_route_with_auth(const char* uri, AsyncWebServer& serv, WebRequestMethod
 // formatOnFail=true handles the first boot after the LittleFS migration ships
 // (partition may still be SPIFFS-formatted or unformatted) so the device stays
 // bootable while the user OTA-uploads the FS image.
+//
+// SMALL_FLASH_DEVICE targets (lilygo_330, esp32devkit_330, compiler_warning_check)
+// have no room for the LittleFS driver until phase 4+ deletes the templated
+// _html.cpp payloads. Until then, keep them on the old server-side rendered
+// pages; the guard is removed once the app slot has headroom.
 static void webserver_fs_init() {
+#ifndef SMALL_FLASH_DEVICE
   if (!LittleFS.begin(/*formatOnFail=*/true, "/littlefs", 10, "spiffs")) {
     set_event(EVENT_FS_MOUNT_FAILED, 0);
   }
+#endif
 }
 
 void init_webserver() {
@@ -230,6 +239,7 @@ void init_webserver() {
   // Diagnostic: LittleFS mount state and byte counts. Returns {total,used,free}
   // in bytes; all three are 0 if the FS failed to mount (EVENT_FS_MOUNT_FAILED
   // is also set in that case, visible on the events page).
+#ifndef SMALL_FLASH_DEVICE
   def_route_with_auth("/api/fs_info", server, HTTP_GET, [](AsyncWebServerRequest* request) {
     static JsonDocument doc;
     doc.clear();
@@ -242,6 +252,7 @@ void init_webserver() {
     serializeJson(doc, body);
     request->send(200, "application/json", body);
   });
+#endif
 
   // Route for root / web page
   def_route_with_auth("/", server, HTTP_GET, [](AsyncWebServerRequest* request) {
