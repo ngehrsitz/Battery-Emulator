@@ -15,10 +15,14 @@
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../network/network_status.h"  // network_connected() / network_localIP()
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
+#ifdef HW_HAS_ETHERNET
+#include "../ethernet/ethernet.h"  // ethernet_connected()
+#endif
 #include "esp_task_wdt.h"
 #include "html_escape.h"
 
@@ -571,8 +575,6 @@ void init_webserver() {
 
               for (auto& boolSetting : boolSettingNames) {
                 auto p = request->getParam(boolSetting, true);
-                // Settings that default to true when unset. Keep this list narrow so unknown
-                // keys stay false-default (matches historical behaviour).
                 const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
                 const bool value = p != nullptr && p->value() == "on";
                 if (settings.getBool(boolSetting, default_value) != value) {
@@ -1027,18 +1029,28 @@ String processor(const String& var) {
     }
 
     wl_status_t status = WiFi.status();
-    // Display ssid of network connected to and, if connected to the WiFi, its own IP
+    // SSID/RSSI/channel are WiFi-specific; only show them when the STA is connected.
     content += "<h4>SSID: " + html_escape(ssid.c_str());
     if (status == WL_CONNECTED) {
       // Get and display the signal strength (RSSI) and channel
       content += " RSSI:" + String(WiFi.RSSI()) + " dBm Ch: " + String(WiFi.channel());
     }
     content += "</h4>";
-    if (status == WL_CONNECTED) {
-      content += "<h4>Hostname: " + html_escape(WiFi.getHostname()) + "</h4>";
-      content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
+    // Reachability/hostname/IP reflect the active interface, which may be Ethernet
+    // rather than WiFi on boards that have it.
+    if (network_connected()) {
+#ifdef HW_HAS_ETHERNET
+      const bool via_eth = ethernet_connected();
+      const char* iface = via_eth ? "Ethernet" : "WiFi";
+      const char* hostname = via_eth ? ETH.getHostname() : WiFi.getHostname();
+#else
+      const char* iface = "WiFi";
+      const char* hostname = WiFi.getHostname();
+#endif
+      content += "<h4>Hostname: " + html_escape(hostname) + "</h4>";
+      content += "<h4>IP (" + String(iface) + "): " + network_localIP().toString() + "</h4>";
     } else {
-      content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
+      content += "<h4>Network state: " + getConnectResultString(status) + "</h4>";
     }
 
     if (ap_active) {

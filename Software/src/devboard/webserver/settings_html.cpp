@@ -6,8 +6,6 @@
 #include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
-#include "../hal/hal.h"  // esp32hal->HAS_ETH()
-#include "../wifi/wifi.h"
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"

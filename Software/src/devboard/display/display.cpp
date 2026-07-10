@@ -412,7 +412,7 @@ static void print_events(int row, int count) {
   }
 }
 
-static void print_wifi_status(int row) {
+static void print_network_status(int row) {
   char buf[22];
   memset(buf, ' ', sizeof(buf));
   buf[21] = '\0';
@@ -477,7 +477,7 @@ void update_display() {
   write_text(0, 6, "---------------------", false);
 
   // Then IP/RSSI at the bottom
-  print_wifi_status(7);
+  print_network_status(7);
 
   phase++;
   if (phase >= total_phases) {
