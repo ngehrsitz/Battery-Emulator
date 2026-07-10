@@ -1,25 +1,26 @@
 #include "network_status.h"
 
+// On non-Ethernet boards network_connected()/network_localIP() are inline in the
+// header (they are exactly the WiFi calls); only the Ethernet-capable variant
+// needs out-of-line definitions here.
+#ifdef HW_HAS_ETHERNET
+
 #include <WiFi.h>
 
-#ifdef HW_HAS_ETHERNET
 #include "../ethernet/ethernet.h"
-#endif
 
 bool network_connected() {
-#ifdef HW_HAS_ETHERNET
   if (ethernet_connected()) {
     return true;
   }
-#endif
   return WiFi.status() == WL_CONNECTED;
 }
 
 IPAddress network_localIP() {
-#ifdef HW_HAS_ETHERNET
   if (ethernet_connected()) {
     return ethernet_localIP();
   }
-#endif
   return WiFi.localIP();
 }
+
+#endif  // HW_HAS_ETHERNET

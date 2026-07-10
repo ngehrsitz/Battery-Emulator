@@ -2,8 +2,10 @@
 #include <esp_mac.h>                                                     // esp_read_mac()
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
+#include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
+#ifdef HW_HAS_ETHERNET
 #include "../ethernet/ethernet.h"  // ethernet_connected()
-#include "../hal/hal.h"            // esp32hal / AP_BUTTON_PIN()
+#endif
 #include "../safety/safety.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"

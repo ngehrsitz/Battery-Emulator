@@ -18,7 +18,9 @@
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
+#ifdef HW_HAS_ETHERNET
 #include "src/devboard/ethernet/ethernet.h"
+#endif
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
 #include "src/devboard/sdcard/sdcard.h"
