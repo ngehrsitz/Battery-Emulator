@@ -2,10 +2,8 @@
 #include <esp_mac.h>                                                     // esp_read_mac()
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
-#include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
-#ifdef HW_HAS_ETHERNET
-#include "../ethernet/ethernet.h"  // ethernet_connected()
-#endif
+#include "../ethernet/ethernet.h"  // ethernet_connected() (false on non-ETH boards)
+#include "../hal/hal.h"            // esp32hal / AP_BUTTON_PIN()
 #include "../safety/safety.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
@@ -335,11 +333,8 @@ void wifi_monitor() {
         // with Ethernet, skip forcing the AP up while Ethernet is online — the
         // reconnect timeout that got us here gives Ethernet ample time to obtain
         // an IP, so a live Ethernet link means we don't need a recovery AP.
-#ifdef HW_HAS_ETHERNET
+        // ethernet_connected() is always false on boards without Ethernet.
         const bool eth_online = ethernet_connected();
-#else
-        const bool eth_online = false;
-#endif
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
           // Don't resurrect the rescue AP if its provisioning window already
           // expired with the factory-default password still in place.

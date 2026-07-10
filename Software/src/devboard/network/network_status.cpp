@@ -1,13 +1,8 @@
 #include "network_status.h"
 
-// On non-Ethernet boards network_connected()/network_localIP() are inline in the
-// header (they are exactly the WiFi calls); only the Ethernet-capable variant
-// needs out-of-line definitions here.
-#ifdef HW_HAS_ETHERNET
-
 #include <WiFi.h>
 
-#include "../ethernet/ethernet.h"
+#include "../ethernet/ethernet.h"  // ethernet_connected/localIP/hostname (no-ops on non-ETH boards)
 
 bool network_connected() {
   if (ethernet_connected()) {
@@ -23,4 +18,13 @@ IPAddress network_localIP() {
   return WiFi.localIP();
 }
 
-#endif  // HW_HAS_ETHERNET
+const char* network_hostname() {
+  if (ethernet_connected()) {
+    return ethernet_hostname();
+  }
+  return WiFi.getHostname();
+}
+
+const char* network_interface_name() {
+  return ethernet_connected() ? "Ethernet" : "WiFi";
+}

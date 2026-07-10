@@ -3,14 +3,11 @@
 
 #include <WiFi.h>  // IPAddress + WiFiClient are all reached via WiFi.h in this project
 
-// Shared network-state helpers. Used wherever code needs "is any interface up?"
-// or "what IP do we display?" — abstracts over WiFi STA + optional Ethernet
-// so those semantics don't drift between call sites.
-
-#ifdef HW_HAS_ETHERNET
-
-// Ethernet-capable boards need the runtime check across both interfaces, so the
-// implementations live out-of-line in network_status.cpp.
+// Shared network-state helpers. Used wherever code needs "is any interface up?",
+// "what IP do we display?", or "what hostname?" — abstracts over WiFi STA +
+// optional Ethernet so those semantics don't drift between call sites. Which
+// interface is active is decided at runtime (Ethernet wins if it has an IP), so
+// these need no per-board compile-time gating.
 
 // True if the WiFi station is connected OR Ethernet has an IP.
 bool network_connected();
@@ -18,19 +15,11 @@ bool network_connected();
 // Prefer Ethernet's IP if it is up, else the WiFi STA IP. 0.0.0.0 if neither.
 IPAddress network_localIP();
 
-#else
+// Hostname of the active interface (Ethernet if up, else WiFi).
+const char* network_hostname();
 
-// No Ethernet: these are exactly the WiFi calls. Inline so the compiler folds
-// them into the (already WiFi-linked) call sites — no standalone functions or
-// extra translation unit on small-flash boards.
-inline bool network_connected() {
-  return WiFi.status() == WL_CONNECTED;
-}
-
-inline IPAddress network_localIP() {
-  return WiFi.localIP();
-}
-
-#endif  // HW_HAS_ETHERNET
+// Human-readable name of the active interface: "Ethernet" if Ethernet is up,
+// else "WiFi".
+const char* network_interface_name();
 
 #endif  // NETWORK_STATUS_H

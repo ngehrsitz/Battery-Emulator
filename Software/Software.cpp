@@ -18,9 +18,7 @@
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
-#ifdef HW_HAS_ETHERNET
 #include "src/devboard/ethernet/ethernet.h"
-#endif
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
 #include "src/devboard/sdcard/sdcard.h"
@@ -91,11 +89,10 @@ void init_serial() {
 void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
 
-#ifdef HW_HAS_ETHERNET
   // Bring up Ethernet before WiFi so the interface is registered before mDNS
   // and any early code that inspects network_localIP() falls back correctly.
+  // A no-op on boards whose HAL reports HAS_ETH() == false.
   init_Ethernet();
-#endif
 
   // Init wifi
   init_WiFi();
