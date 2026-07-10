@@ -120,6 +120,7 @@ String default_hostname() {
   char mac_suffix[5];
   snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
   return "battery-emulator-" + String(mac_suffix);
+}
 
 // Initialise mDNS
 static void init_mDNS() {
@@ -338,10 +339,11 @@ void wifi_monitor() {
         const bool eth_online = false;
 #endif
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
-          logging.println("No previous OK connection, force a full connection attempt...");
           // Don't resurrect the rescue AP if its provisioning window already
           // expired with the factory-default password still in place.
           if (!ap_provisioning_expired) {
+            logging.println(
+                "No previous OK connection, bringing up recovery AP and forcing a full connection attempt...");
             wifiap_enabled = true;
             WiFi.mode(WIFI_AP_STA);
             init_WiFi_AP();
