@@ -102,16 +102,16 @@ static void check_ap_provisioning_window() {
   set_event(EVENT_WIFI_AP_PROVISION_TIMEOUT, 0);
 }
 
-// STA is wanted only when the user has actually configured credentials.
-static bool wifi_sta_wanted() {
+// STA is configured only when the user has actually configured credentials.
+static bool wifi_configured() {
   return !ssid.empty() && !password.empty();
 }
 
 // The WiFi radio only needs to come up if either the AP is broadcast or STA
 // credentials are configured. On an Ethernet-only board with the AP disabled
 // and no credentials, we leave the radio off entirely.
-static bool wifi_wanted() {
-  return wifiap_enabled || wifi_sta_wanted();
+static bool wifi_required() {
+  return wifiap_enabled || wifi_configured();
 }
 
 String default_hostname() {
@@ -139,7 +139,7 @@ static void init_mDNS() {
 }
 
 void init_WiFi() {
-  if (!wifi_wanted()) {
+  if (!wifi_required()) {
     DEBUG_PRINTF("init_Wifi: neither AP nor STA configured; skipping\n");
     return;
   }
@@ -260,8 +260,8 @@ static void check_ap_button() {
       if (!ap_active) {
         ap_provisioning_expired = false;  // manual start opens a fresh provisioning window
         // Emergency recovery: bring the AP up for this boot only.
-        const bool radio_was_wanted = wifi_wanted();
-        // Force the AP on so wifi_wanted() passes even on a radio-off config;
+        const bool radio_was_wanted = wifi_required();
+        // Force the AP on so wifi_required() passes even on a radio-off config;
         // do NOT persist it — reboot restores the user's preference.
         wifiap_enabled = true;
         if (!radio_was_wanted) {
@@ -282,7 +282,7 @@ void wifi_monitor() {
   check_ap_button();  // must always run: emergency-recovery path even when the radio is off
   check_ap_provisioning_window();
 
-  if (!wifi_wanted()) {
+  if (!wifi_required()) {
     return;  // radio not brought up (no AP, no STA credentials)
   }
 
