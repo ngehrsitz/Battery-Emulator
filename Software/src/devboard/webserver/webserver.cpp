@@ -573,8 +573,7 @@ void init_webserver() {
                 auto p = request->getParam(boolSetting, true);
                 // Settings that default to true when unset. Keep this list narrow so unknown
                 // keys stay false-default (matches historical behaviour).
-                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED")) ||
-                                           (std::string(boolSetting) == std::string("WIFIENABLED"));
+                const bool default_value = (std::string(boolSetting) == std::string("WIFIAPENABLED"));
                 const bool value = p != nullptr && p->value() == "on";
                 if (settings.getBool(boolSetting, default_value) != value) {
                   settings.saveBool(boolSetting, value);

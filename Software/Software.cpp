@@ -737,10 +737,11 @@ void setup() {
 
   init_stored_settings();
 
-  if (wifi_enabled) {
-    xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                            &connectivity_loop_task, esp32hal->WIFICORE());
-  }
+  // Always start the connectivity task. It brings up Ethernet (if present) and
+  // WiFi (only when an AP or STA credentials are configured), and its loop runs
+  // the AP-button recovery path — which must work even when the radio is off.
+  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
+                          &connectivity_loop_task, esp32hal->WIFICORE());
 
   led_init();
 

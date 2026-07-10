@@ -2,7 +2,8 @@
 #include <esp_mac.h>                                                     // esp_read_mac()
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
-#include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
+#include "../ethernet/ethernet.h"  // ethernet_connected()
+#include "../hal/hal.h"            // esp32hal / AP_BUTTON_PIN()
 #include "../safety/safety.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
@@ -11,7 +12,6 @@
 #include <ESPmDNS.h>
 #endif
 
-bool wifi_enabled = true;
 bool wifiap_enabled = true;
 bool mdns_enabled = true;    //If true, allows battery monitor te be found by .local address
 bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
@@ -102,13 +102,24 @@ static void check_ap_provisioning_window() {
   set_event(EVENT_WIFI_AP_PROVISION_TIMEOUT, 0);
 }
 
+// STA is wanted only when the user has actually configured credentials.
+static bool wifi_sta_wanted() {
+  return !ssid.empty() && !password.empty();
+}
+
+// The WiFi radio only needs to come up if either the AP is broadcast or STA
+// credentials are configured. On an Ethernet-only board with the AP disabled
+// and no credentials, we leave the radio off entirely.
+static bool wifi_wanted() {
+  return wifiap_enabled || wifi_sta_wanted();
+}
+
 String default_hostname() {
   uint8_t mac_bytes[6];
   esp_read_mac(mac_bytes, ESP_MAC_WIFI_STA);  // reads eFuse directly, valid even before WiFi starts
   char mac_suffix[5];
   snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
   return "battery-emulator-" + String(mac_suffix);
-}
 
 // Initialise mDNS
 static void init_mDNS() {
@@ -128,12 +139,12 @@ static void init_mDNS() {
 }
 
 void init_WiFi() {
-  if (!wifi_enabled) {
-    DEBUG_PRINTF("init_Wifi: disabled by user setting; skipping\n");
+  if (!wifi_wanted()) {
+    DEBUG_PRINTF("init_Wifi: neither AP nor STA configured; skipping\n");
     return;
   }
 
-  DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
+  DEBUG_PRINTF("init_Wifi ap=%d, ssid=%s\n", wifiap_enabled, ssid.c_str());
 
   // Keep the WiFi driver's mode/config changes in RAM instead of NVS. Credentials
   // are stored in our own Preferences and reapplied at boot, so driver-level
@@ -164,7 +175,7 @@ void init_WiFi() {
   if (wifiap_enabled) {
     WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
     init_WiFi_AP();
-  } else if (wifi_enabled) {
+  } else {
     WiFi.mode(WIFI_STA);  // Only Router connection
   }
 
@@ -246,20 +257,20 @@ static void check_ap_button() {
       hold_pins_across_reset();
       graceful_restart();
     } else if (held >= AP_BUTTON_AP_MS) {
-      if (!wifi_enabled) {
-        // Emergency recovery: bring WiFi + AP up ignoring the persisted disable
-        // flag, for this boot only. Do NOT persist wifi_enabled — reboot restores
-        // the user's preference. User must clear the checkbox in the UI to make
-        // the change stick.
-        wifi_enabled = true;
-        wifiap_enabled = true;
-        init_WiFi();  // creates the WiFi task + registers handlers
-      }
       if (!ap_active) {
         ap_provisioning_expired = false;  // manual start opens a fresh provisioning window
-        WiFi.mode(WIFI_AP_STA);
-        init_WiFi_AP();  // sets ap_active, restarts the provisioning window timer
-        logging.println("AP started from the board button.");
+        // Emergency recovery: bring the AP up for this boot only.
+        const bool radio_was_wanted = wifi_wanted();
+        // Force the AP on so wifi_wanted() passes even on a radio-off config;
+        // do NOT persist it — reboot restores the user's preference.
+        wifiap_enabled = true;
+        if (!radio_was_wanted) {
+          init_WiFi();  // radio was off: bring it up + register handlers
+        } else {
+          // Radio already up (STA configured): just add the AP.
+          WiFi.mode(WIFI_AP_STA);
+          init_WiFi_AP();  // sets ap_active
+        }
       }
     }
   }
@@ -268,11 +279,11 @@ static void check_ap_button() {
 
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
-  check_ap_button();  // must always run: emergency-recovery path even when WiFi is disabled
+  check_ap_button();  // must always run: emergency-recovery path even when the radio is off
   check_ap_provisioning_window();
 
-  if (!wifi_enabled) {
-    return;  // don't drive reconnect logic when the user has disabled WiFi
+  if (!wifi_wanted()) {
+    return;  // radio not brought up (no AP, no STA credentials)
   }
 
   if (ssid.empty() || password.empty()) {
@@ -317,7 +328,15 @@ void wifi_monitor() {
           }
         }
       } else {
-        // If no previous connection, force a full connection attempt
+        // If no previous connection, force a full connection attempt. On boards
+        // with Ethernet, skip forcing the AP up while Ethernet is online — the
+        // reconnect timeout that got us here gives Ethernet ample time to obtain
+        // an IP, so a live Ethernet link means we don't need a recovery AP.
+#ifdef HW_HAS_ETHERNET
+        const bool eth_online = ethernet_connected();
+#else
+        const bool eth_online = false;
+#endif
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
           logging.println("No previous OK connection, force a full connection attempt...");
           // Don't resurrect the rescue AP if its provisioning window already

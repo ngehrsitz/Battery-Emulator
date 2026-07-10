@@ -552,16 +552,6 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("WIFIAPENABLED", wifiap_enabled) ? "checked" : "";
   }
 
-  if (var == "WIFIENABLED") {
-    return settings.getBool("WIFIENABLED", wifi_enabled) ? "checked" : "";
-  }
-
-  if (var == "HAS_ETH_STYLE") {
-    // Hide the "Enable WiFi" row on boards that don't have Ethernet — disabling WiFi
-    // there would strand the user without a way to reach the webserver.
-    return esp32hal->HAS_ETH() ? String("") : String("display:none");
-  }
-
   if (var == "APPASSWORD") {
     return String("");
   }
