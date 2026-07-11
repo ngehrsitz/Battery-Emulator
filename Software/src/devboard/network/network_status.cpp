@@ -2,29 +2,24 @@
 
 #include <WiFi.h>
 
-#include "../ethernet/ethernet.h"  // ethernet_connected/localIP/hostname (no-ops on non-ETH boards)
+#ifdef HW_HAS_ETHERNET
+#include "../ethernet/ethernet.h"
+#endif
 
 bool network_connected() {
+#ifdef HW_HAS_ETHERNET
   if (ethernet_connected()) {
     return true;
   }
+#endif
   return WiFi.status() == WL_CONNECTED;
 }
 
 IPAddress network_localIP() {
+#ifdef HW_HAS_ETHERNET
   if (ethernet_connected()) {
     return ethernet_localIP();
   }
+#endif
   return WiFi.localIP();
-}
-
-const char* network_hostname() {
-  if (ethernet_connected()) {
-    return ethernet_hostname();
-  }
-  return WiFi.getHostname();
-}
-
-const char* network_interface_name() {
-  return ethernet_connected() ? "Ethernet" : "WiFi";
 }

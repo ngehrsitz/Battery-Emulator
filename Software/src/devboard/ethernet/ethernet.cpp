@@ -1,6 +1,6 @@
 #include "ethernet.h"
 
-#include <ETH.h>  // This is the ONLY translation unit permitted to include <ETH.h>.
+#ifdef HW_HAS_ETHERNET
 
 #include "../hal/hal.h"
 #include "../utils/events.h"
@@ -88,8 +88,8 @@ static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
 
 void init_Ethernet() {
   if (!esp32hal->HAS_ETH()) {
-    // This board's HAL reports no Ethernet PHY — nothing to bring up. This is
-    // the runtime gate that replaces the old HW_HAS_ETHERNET compile-time flag.
+    // The HAL was built with HW_HAS_ETHERNET but the concrete HAL class opted
+    // out at runtime. Shouldn't happen with the current boards, but harmless.
     return;
   }
 
@@ -128,6 +128,4 @@ IPAddress ethernet_localIP() {
   return ETH.localIP();
 }
 
-const char* ethernet_hostname() {
-  return ETH.getHostname();
-}
+#endif  // HW_HAS_ETHERNET

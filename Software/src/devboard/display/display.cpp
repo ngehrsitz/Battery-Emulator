@@ -5,11 +5,13 @@
 
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
-#include "../ethernet/ethernet.h"
 #include "../hal/hal.h"
 #include "../network/network_status.h"
 #include "../utils/events.h"
 #include "../utils/logging.h"
+#ifdef HW_HAS_ETHERNET
+#include "../ethernet/ethernet.h"
+#endif
 #include "fonts.h"
 
 #include "Arduino.h"
@@ -417,12 +419,15 @@ static void print_network_status(int row) {
 
   if (network_connected()) {
     cpy(buf, network_localIP().toString().c_str());
+#ifdef HW_HAS_ETHERNET
     if (ethernet_connected()) {
       // Ethernet has no RSSI; show "ETH" in the same slot as the WiFi dB value.
       buf[16] = 'E';
       buf[17] = 'T';
       buf[18] = 'H';
-    } else {
+    } else
+#endif
+    {
       print3(buf + 16, WiFi.RSSI());
       buf[19] = 'd';
       buf[20] = 'B';
