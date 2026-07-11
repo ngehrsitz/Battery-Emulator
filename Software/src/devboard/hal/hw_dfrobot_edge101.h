@@ -17,8 +17,10 @@
 //   UART1 (mini-PCIe 4G modem slot):
 //     TX1 = GPIO 33, RX1 = GPIO 34
 
-// Enable the shared Ethernet module and gate ETH-only code paths.
-#define HW_HAS_ETHERNET
+// NOTE: HW_HAS_ETHERNET is set as a -D build flag on the dfrobot_edge101_330 env
+// in platformio.ini (not #define'd here). It must be visible at file scope in the
+// many TUs that gate Ethernet code on it; this board header is only included from
+// inside init_hal()'s function body, so a #define here would never reach them.
 
 class DFRobotEdge101Hal : public Esp32Hal {
  public:
