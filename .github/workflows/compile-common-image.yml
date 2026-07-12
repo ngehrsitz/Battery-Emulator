@@ -104,3 +104,21 @@ jobs:
           firmware-*.bin
           ${{ matrix.pio_env }}.size.json
         if-no-files-found: warn
+
+  # Diff this PR's per-board size reports against the base branch and render a
+  # comment. Runs only for PRs; the PR number and base ref/sha are known here
+  # (pull_request context) and passed in, so the reusable workflow needs no
+  # fork-unsafe PR lookup. It only renders + uploads an artifact — the comment
+  # is posted later by add-comment-to-pr.yml, which triggers on this workflow's
+  # completion and holds the pull-requests:write token forks can't grant here.
+  measure:
+    needs: build
+    if: github.event_name == 'pull_request'
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/measure-firmware-size.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      base_ref:  ${{ github.event.pull_request.base.ref }}
+      base_sha:  ${{ github.event.pull_request.base.sha }}

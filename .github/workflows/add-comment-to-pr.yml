@@ -1,20 +1,33 @@
 name: 💬 Add comment to PR
 
+# Posts the firmware-size comment rendered by the reusable "Measure firmware
+# size" workflow (run as part of "🔋 Compile Common Images"). This runs as a
+# separate workflow_run event so it gets a token minted against the base repo
+# — that's what lets it hold pull-requests:write even when the PR came from a
+# fork, which the pull_request-triggered compile run cannot.
+
 on:
   workflow_run:
-    workflows: ["⚖️ Measure firmware size"]
+    workflows: ["🔋 Compile Common Images"]
     types:
       - completed
 
 jobs:
   comment:
     runs-on: ubuntu-latest
-    # Only run if the building workflow actually succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Only for PR-triggered compile runs that succeeded — a push build on main
+    # never runs the measure job, so there's no comment artifact to post.
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
     permissions:
       pull-requests: write
     steps:
     - name: Download artifact
+      id: download
+      # The artifact only exists if the measure job actually ran and uploaded
+      # it. Don't hard-fail the workflow if it's absent (e.g. measure skipped).
+      continue-on-error: true
       uses: actions/download-artifact@v4
       with:
         name: comment-for-pr
@@ -22,11 +35,13 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Read PR number
+      if: steps.download.outcome == 'success'
       id: pr_number
       run: |
         echo "num=$(cat pr_number.txt)" >> $GITHUB_OUTPUT
 
     - name: Add comment to PR
+      if: steps.download.outcome == 'success' && steps.pr_number.outputs.num != ''
       uses: marocchino/sticky-pull-request-comment@v2
       with:
         number: ${{ steps.pr_number.outputs.num }}
