@@ -1,22 +1,15 @@
 name: 💬 Add comment to PR
 
-# Posts the firmware-size comment rendered by the reusable "Measure firmware
-# size" workflow (run as part of "🔋 Compile Common Images"). This runs as a
-# separate workflow_run event so it gets a token minted against the base repo
-# — that's what lets it hold pull-requests:write even when the PR came from a
-# fork, which the pull_request-triggered compile run cannot.
-
 on:
   workflow_run:
-    workflows: ["🔋 Compile Common Images"]
+    workflows: ["🔋 Compile Common Images"] # "Measure firmware size" is embedded here
     types:
       - completed
 
 jobs:
   comment:
     runs-on: ubuntu-latest
-    # Only for PR-triggered compile runs that succeeded — a push build on main
-    # never runs the measure job, so there's no comment artifact to post.
+    # Only for PR-triggered compile runs that succeeded
     if: >
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success'
@@ -24,9 +17,6 @@ jobs:
       pull-requests: write
     steps:
     - name: Download artifact
-      # A successful PR compile always runs measure, which uploads this with
-      # if-no-files-found: error — so a missing artifact here means something
-      # broke upstream. Let the download hard-fail (loudly) rather than skip.
       uses: actions/download-artifact@v8
       with:
         name: comment-for-pr
