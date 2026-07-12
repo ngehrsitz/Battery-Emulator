@@ -27,7 +27,7 @@ jobs:
       # A successful PR compile always runs measure, which uploads this with
       # if-no-files-found: error — so a missing artifact here means something
       # broke upstream. Let the download hard-fail (loudly) rather than skip.
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: comment-for-pr
         run-id: ${{ github.event.workflow_run.id }}
@@ -39,7 +39,7 @@ jobs:
         echo "num=$(cat pr_number.txt)" >> $GITHUB_OUTPUT
 
     - name: Add comment to PR
-      uses: marocchino/sticky-pull-request-comment@v2
+      uses: marocchino/sticky-pull-request-comment@v3
       with:
         number: ${{ steps.pr_number.outputs.num }}
         path: comment.md
