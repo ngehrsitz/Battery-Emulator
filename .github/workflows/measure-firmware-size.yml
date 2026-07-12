@@ -35,21 +35,18 @@ jobs:
   measure:
     runs-on: ubuntu-latest
     steps:
+    - name: Check PR context
+      if: inputs.pr_number == '' || inputs.base_ref == ''
+      run: |
+        echo "::error::measure was called without a PR number / base ref." >&2
+        exit 1
+
     - name: Checkout scripts
       uses: actions/checkout@v7
       with:
         sparse-checkout: .github/scripts
 
-    - name: Fail if PR context is missing
-      # A reusable call should always supply these; treat an empty value as a
-      # bug and fail loudly rather than silently skipping the comment.
-      if: inputs.pr_number == '' || inputs.base_ref == ''
-      run: |
-        echo "::error::measure was called without a PR number / base ref (pr_number='${{ inputs.pr_number }}', base_ref='${{ inputs.base_ref }}')." >&2
-        exit 1
-
     - name: Download PR-side size reports from this run
-      # Same-run artifacts uploaded by the caller's build matrix.
       uses: actions/download-artifact@v8
       with:
         path: ./pr
