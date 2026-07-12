@@ -1,15 +1,7 @@
 name: ⚖️ Measure firmware size
 
 # Reusable workflow called by "🔋 Compile Common Images" on pull_request.
-# The caller already knows the PR number and base ref/sha, so it passes them in
-# as inputs — no PR lookup here (looking a fork PR up from the base repo is
-# unreliable: the head commit isn't reachable from any base-repo ref).
-#
-# No PlatformIO, no rebuilds — just download the per-board size reports the
-# caller's build matrix produced, diff against the base branch, and render a
-# comment. Posting the comment happens later in add-comment-to-pr.yml, which
-# runs as a separate workflow_run event so it can hold a pull-requests:write
-# token even for fork PRs. This job only ever needs read access.
+# No PlatformIO, no rebuilds — just download, diff, and comment.
 
 on:
   workflow_call:
@@ -28,7 +20,7 @@ on:
         type: string
 
 permissions:
-  actions: read       # list workflow runs; cross-run artifact download of base
+  actions: read       # list workflow runs; cross-run artifact download
   contents: read
 
 jobs:
