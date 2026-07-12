@@ -107,7 +107,7 @@ jobs:
 
   measure-size:
     needs: build
-    if: github.event_name == 'pull_request'
+    if: always() && github.event_name == 'pull_request' # Continue on compile failures
     permissions:
       actions: read
       contents: read
