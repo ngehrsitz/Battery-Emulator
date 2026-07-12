@@ -24,10 +24,9 @@ jobs:
       pull-requests: write
     steps:
     - name: Download artifact
-      id: download
-      # The artifact only exists if the measure job actually ran and uploaded
-      # it. Don't hard-fail the workflow if it's absent (e.g. measure skipped).
-      continue-on-error: true
+      # A successful PR compile always runs measure, which uploads this with
+      # if-no-files-found: error — so a missing artifact here means something
+      # broke upstream. Let the download hard-fail (loudly) rather than skip.
       uses: actions/download-artifact@v4
       with:
         name: comment-for-pr
@@ -35,13 +34,11 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Read PR number
-      if: steps.download.outcome == 'success'
       id: pr_number
       run: |
         echo "num=$(cat pr_number.txt)" >> $GITHUB_OUTPUT
 
     - name: Add comment to PR
-      if: steps.download.outcome == 'success' && steps.pr_number.outputs.num != ''
       uses: marocchino/sticky-pull-request-comment@v2
       with:
         number: ${{ steps.pr_number.outputs.num }}
