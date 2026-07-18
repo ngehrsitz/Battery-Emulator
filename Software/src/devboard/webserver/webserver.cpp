@@ -1033,8 +1033,7 @@ String processor(const String& var) {
       content += " RSSI:" + String(WiFi.RSSI()) + " dBm Ch: " + String(WiFi.channel());
     }
     content += "</h4>";
-    // Reachability/hostname/IP reflect the active interface, which may be Ethernet
-    // rather than WiFi on boards that have it.
+    // Reachability/hostname/IP reflect the active interface
     if (network_connected()) {
       content += "<h4>Hostname: " + html_escape(network_hostname()) + "</h4>";
       content += "<h4>IP (" + String(network_active_ifname()) + "): " + network_localIP().toString() + "</h4>";

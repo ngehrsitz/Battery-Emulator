@@ -943,8 +943,7 @@ bool init_mqtt(void) {
 }
 
 void mqtt_client_loop(void) {
-  // Only attempt to publish/reconnect MQTT if the network (WiFi or Ethernet) is up
-  // and checkTimmer is elapsed.
+  // Only attempt to publish/reconnect MQTT if network is connected and checkTimmer is elapsed
   if (check_global_timer.elapsed() && network_connected()) {
 
     if (client_started == false) {
