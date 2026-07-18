@@ -23,3 +23,21 @@ IPAddress network_localIP() {
 #endif
   return WiFi.localIP();
 }
+
+const char* network_hostname() {
+#ifdef HW_HAS_ETHERNET
+  if (ethernet_connected()) {
+    return ETH.getHostname();
+  }
+#endif
+  return WiFi.getHostname();
+}
+
+const char* network_active_ifname() {
+#ifdef HW_HAS_ETHERNET
+  if (ethernet_connected()) {
+    return "Ethernet";
+  }
+#endif
+  return "WiFi";
+}

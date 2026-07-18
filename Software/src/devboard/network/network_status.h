@@ -13,4 +13,10 @@ bool network_connected();
 // Prefer Ethernet's IP if it is up, else the WiFi STA IP. 0.0.0.0 if neither.
 IPAddress network_localIP();
 
+// Active interface's hostname (Ethernet preferred; falls back to WiFi).
+const char* network_hostname();
+
+// "Ethernet" if Ethernet is up, otherwise "WiFi".
+const char* network_active_ifname();
+
 #endif  // NETWORK_STATUS_H

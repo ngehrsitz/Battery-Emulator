@@ -20,9 +20,6 @@
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
-#ifdef HW_HAS_ETHERNET
-#include "../ethernet/ethernet.h"  // ethernet_connected()
-#endif
 #include "esp_task_wdt.h"
 #include "html_escape.h"
 
@@ -1039,16 +1036,8 @@ String processor(const String& var) {
     // Reachability/hostname/IP reflect the active interface, which may be Ethernet
     // rather than WiFi on boards that have it.
     if (network_connected()) {
-#ifdef HW_HAS_ETHERNET
-      const bool via_eth = ethernet_connected();
-      const char* iface = via_eth ? "Ethernet" : "WiFi";
-      const char* hostname = via_eth ? ETH.getHostname() : WiFi.getHostname();
-#else
-      const char* iface = "WiFi";
-      const char* hostname = WiFi.getHostname();
-#endif
-      content += "<h4>Hostname: " + html_escape(hostname) + "</h4>";
-      content += "<h4>IP (" + String(iface) + "): " + network_localIP().toString() + "</h4>";
+      content += "<h4>Hostname: " + html_escape(network_hostname()) + "</h4>";
+      content += "<h4>IP (" + String(network_active_ifname()) + "): " + network_localIP().toString() + "</h4>";
     } else {
       content += "<h4>Network state: " + getConnectResultString(status) + "</h4>";
     }
