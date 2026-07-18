@@ -283,8 +283,6 @@ void clear_wifi_sta_settings() {
   // Force the AP on so the device is reachable after the STA settings are cleared,
   // overriding a user preference that may have disabled it:
   settings.saveBool("WIFIAPENABLED", true);
-  // Force WiFi STA back on for the same reason.
-  settings.saveBool("WIFIENABLED", true);
   // Clear the static IP settings (STATICIP=false already disables their use):
   for (auto key : STATIC_IP_KEYS) {
     settings.saveString(key, "");
