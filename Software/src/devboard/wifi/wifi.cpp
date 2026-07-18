@@ -341,7 +341,7 @@ void wifi_monitor() {
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
           // Don't resurrect the rescue AP if its provisioning window already
           // expired with the factory-default password still in place.
-          if (!ap_provisioning_expired) {
+          if (!ap_provisioning_expired && !eth_online) {
             logging.println(
                 "No previous OK connection, bringing up recovery AP and forcing a full connection attempt...");
             wifiap_enabled = true;
