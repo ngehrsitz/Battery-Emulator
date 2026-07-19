@@ -4,17 +4,13 @@
 #include "../../communication/nvm/comm_nvm.h"
 #include "../ethernet/ethernet.h"  // ethernet_connected()
 #include "../hal/hal.h"            // esp32hal / AP_BUTTON_PIN()
-#include "../network/network_status.h"  // network_hostname()
+#include "../network/mdns.h"       // init_mDNS() / mdns_enabled
 #include "../safety/safety.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/logging.h"
-#ifndef SMALL_FLASH_DEVICE
-#include <ESPmDNS.h>
-#endif
 
 bool wifiap_enabled = true;
-bool mdns_enabled = true;    //If true, allows battery monitor te be found by .local address
 bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
 uint16_t wifi_channel = 0;
 #ifndef SMALL_FLASH_DEVICE
@@ -121,34 +117,6 @@ String default_hostname() {
   char mac_suffix[5];
   snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
   return "battery-emulator-" + String(mac_suffix);
-}
-
-// Initialise mDNS. Safe to call from either the WiFi STA GOT_IP or the Ethernet
-// GOT_IP handler: the mdns_enabled check and the one-shot guard live here, so the
-// responder begins exactly once on whichever interface acquires an IP first. Both
-// call sites run on the single arduino-esp32 arduino_events task, so the guard
-// needs no lock.
-void init_mDNS() {
-#ifndef SMALL_FLASH_DEVICE
-  static bool mdns_started = false;
-  if (!mdns_enabled || mdns_started) {
-    return;
-  }
-
-  // Reuse the active interface's hostname (Ethernet if it is up, else the WiFi
-  // custom/"battery-emulator-<mac>" default set in init_WiFi()). Consistent with AP too.
-  String mdnsHost = String(network_hostname());
-
-  // Initialize mDNS .local resolution
-  if (!MDNS.begin(mdnsHost)) {
-    logging.println("Error setting up mDNS responder!");
-  } else {
-    // Advertise via bonjour the web inteface so we can auto discover these battery emulators on the local network.
-    MDNS.addService("http", "tcp", 80);
-    logging.println("mDNS responder started.");
-  }
-  mdns_started = true;  // set even on begin() failure — preserves prior one-shot semantics
-#endif
 }
 
 void init_WiFi() {
