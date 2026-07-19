@@ -4,7 +4,8 @@
 
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include "../wifi/wifi.h"  // custom_hostname, default_hostname()
+#include "../network/hostname.h"        // custom_hostname, default_hostname()
+#include "../network/network_status.h"  // network_connected()
 
 #define MAX_LINE_LENGTH_PRINTF 128
 #define MAX_LENGTH_TIME_STR 14
@@ -87,8 +88,8 @@ static const char* syslog_hostname(void) {
 }
 
 static bool syslog_online(void) {
-  // Sendable when joined to a network (STA) OR when a client is on our SoftAP.
-  return (WiFi.status() == WL_CONNECTED) || (WiFi.softAPgetStationNum() > 0);
+  // Sendable when connected to a network OR when a client is on our SoftAP.
+  return network_connected() || (WiFi.softAPgetStationNum() > 0);
 }
 
 // Called ONLY from syslog_task, and never with the mutex held.

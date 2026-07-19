@@ -18,6 +18,7 @@
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/display/display.h"
 #include "src/devboard/espnow/espnow.h"
+#include "src/devboard/ethernet/ethernet.h"
 #include "src/devboard/mqtt/mqtt.h"
 #include "src/devboard/safety/parallel_safety.h"
 #include "src/devboard/sdcard/sdcard.h"
@@ -87,6 +88,13 @@ void init_serial() {
 
 void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
+
+#ifdef HW_HAS_ETHERNET
+  // Bring up Ethernet before WiFi so the interface is registered before mDNS
+  // and any early code that inspects network_localIP() falls back correctly.
+  init_Ethernet();
+#endif
+
   // Init wifi
   init_WiFi();
 
@@ -733,10 +741,11 @@ void setup() {
 
   init_stored_settings();
 
-  if (wifi_enabled) {
-    xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                            &connectivity_loop_task, esp32hal->WIFICORE());
-  }
+  // Always start the connectivity task. It brings up Ethernet (if present) and
+  // WiFi (only when an AP or STA credentials are configured), and its loop runs
+  // the AP-button recovery path — which must work even when the radio is off.
+  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
+                          &connectivity_loop_task, esp32hal->WIFICORE());
 
   led_init();
 

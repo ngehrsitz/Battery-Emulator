@@ -12,17 +12,15 @@
 // Pin map: see arduino-esp32 PR #12742 variants/dfrobot_edge101/pins_arduino.h.
 //
 // Unused-on-board peripherals (documented here for a future PR):
-//   Ethernet (IP101GRI, RMII):
-//     ETH_PHY_TYPE  = ETH_PHY_IP101
-//     ETH_PHY_ADDR  = 1
-//     ETH_PHY_MDC   = GPIO 4
-//     ETH_PHY_MDIO  = GPIO 13
-//     ETH_PHY_POWER = GPIO 2
-//     ETH_CLK_MODE  = ETH_CLOCK_GPIO0_IN
 //   I2C (PCF8563T RTC + Gravity connectors):
 //     SDA = GPIO 18, SCL = GPIO 23; PCF8563T at I2C address 0x51
 //   UART1 (mini-PCIe 4G modem slot):
 //     TX1 = GPIO 33, RX1 = GPIO 34
+
+// NOTE: HW_HAS_ETHERNET is set as a -D build flag on the dfrobot_edge101_330 env
+// in platformio.ini (not #define'd here). It must be visible at file scope in the
+// many TUs that gate Ethernet code on it; this board header is only included from
+// inside init_hal()'s function body, so a #define here would never reach them.
 
 class DFRobotEdge101Hal : public Esp32Hal {
  public:
@@ -49,6 +47,23 @@ class DFRobotEdge101Hal : public Esp32Hal {
 
   // User button — GPIO 38 is input-only on ESP32, no internal pull-up available; board has external pull-up
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_38; }
+
+  // On-board IP101GRI Ethernet PHY (RMII). Data/clock pins (GPIO 0, 21, 22,
+  // 25, 26, 27) are fixed by the ESP32 EMAC hardware and do not go through
+  // the HAL pin allocator. GPIO 0 is repurposed as the RMII 50 MHz clock input,
+  // which is why ETH_CLK_MODE is ETH_CLOCK_GPIO0_IN.
+  //
+  // ETH_PHY_KIND_* and ETH_CLK_KIND_* are project-local constants defined in
+  // hal.h — we avoid including <ETH.h> here because hal.cpp includes this
+  // header from *inside* init_hal()'s function body, which forbids anything
+  // that expands to extern "C" { at file scope.
+  virtual bool HAS_ETH() override { return true; }
+  virtual int ETH_PHY_TYPE_ID() override { return ETH_PHY_KIND_IP101; }
+  virtual int ETH_PHY_ADDR_NUM() override { return 1; }
+  virtual gpio_num_t ETH_PHY_MDC_PIN() override { return GPIO_NUM_4; }
+  virtual gpio_num_t ETH_PHY_MDIO_PIN() override { return GPIO_NUM_13; }
+  virtual gpio_num_t ETH_PHY_POWER_PIN() override { return GPIO_NUM_2; }
+  virtual int ETH_CLK_MODE_ID() override { return ETH_CLK_KIND_GPIO0_IN; }
 
   std::vector<comm_interface> available_interfaces() {
     return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative};
