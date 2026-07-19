@@ -3,38 +3,30 @@
 
 #include "hal.h"
 
-// DFRobot Edge101 IOT Controller (SKU DFR0886)
-// ESP32-WROOM-32E, 16 MB flash, no PSRAM.
-// USB-serial via CH9102F. Isolated CAN (TJA1050), isolated RS485 (TPT75176H),
-// microSD (SPI), IP101GRI Ethernet PHY (RMII), PCF8563T RTC (I2C 0x51),
-// optional mini-PCIe 4G modem slot on UART1.
-//
-// Pin map: see arduino-esp32 PR #12742 variants/dfrobot_edge101/pins_arduino.h.
-//
-// Unused-on-board peripherals (documented here for a future PR):
-//   I2C (PCF8563T RTC + Gravity connectors):
-//     SDA = GPIO 18, SCL = GPIO 23; PCF8563T at I2C address 0x51
-//   UART1 (mini-PCIe 4G modem slot):
-//     TX1 = GPIO 33, RX1 = GPIO 34
+/*
+DFRobot Edge101 IOT Controller (SKU DFR0886)
+ESP32-WROOM-32E, 16 MB flash, no PSRAM. USB-serial via CH9102F.
+Isolated CAN (TJA1050), isolated RS485 (TPT75176H), microSD (SPI),
+IP101GRI Ethernet PHY (RMII), PCF8563T RTC (I2C 0x51).
+Pin map: see arduino-esp32 PR #12742 variants/dfrobot_edge101/pins_arduino.h.
+*/
 
-// NOTE: HW_HAS_ETHERNET is set as a -D build flag on the dfrobot_edge101_330 env
-// in platformio.ini (not #define'd here). It must be visible at file scope in the
-// many TUs that gate Ethernet code on it; this board header is only included from
-// inside init_hal()'s function body, so a #define here would never reach them.
+// NOTE: HW_HAS_ETHERNET is set as a -D build flag in platformio.ini (not #define'd
+// here). It must be visible at file scope; this header is included from inside
+// init_hal()'s function body, so a #define here would never reach other TUs.
 
 class DFRobotEdge101Hal : public Esp32Hal {
  public:
   const char* name() { return "DFRobot Edge101 IOT Controller"; }
 
-  // Native CAN via TJA1050 (galvanically isolated)
-  virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_32; }
-  virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_35; }
-
-  // RS485 via TPT75176H (galvanically isolated)
-  // DE and /RE are tied together
+  // RS485 via TPT75176H (galvanically isolated), DE and /RE are tied together
   virtual gpio_num_t RS485_TX_PIN() { return GPIO_NUM_17; }
   virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_36; }
   virtual gpio_num_t RS485_DE_PIN() { return GPIO_NUM_16; }
+
+  // Native CAN via TJA1050 (galvanically isolated)
+  virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_32; }
+  virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_35; }
 
   // microSD (SPI)
   virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_12; }
@@ -45,18 +37,13 @@ class DFRobotEdge101Hal : public Esp32Hal {
   // User LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_15; }
 
-  // User button — GPIO 38 is input-only on ESP32, no internal pull-up available; board has external pull-up
+  // Momentary push-button that can be long-pressed at runtime to start the Wi-Fi AP.
+  // GPIO 38 is input-only on ESP32, no internal pull-up available; board has external pull-up.
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_38; }
 
-  // On-board IP101GRI Ethernet PHY (RMII). Data/clock pins (GPIO 0, 21, 22,
-  // 25, 26, 27) are fixed by the ESP32 EMAC hardware and do not go through
-  // the HAL pin allocator. GPIO 0 is repurposed as the RMII 50 MHz clock input,
-  // which is why ETH_CLK_MODE is ETH_CLOCK_GPIO0_IN.
-  //
-  // ETH_PHY_KIND_* and ETH_CLK_KIND_* are project-local constants defined in
-  // hal.h — we avoid including <ETH.h> here because hal.cpp includes this
-  // header from *inside* init_hal()'s function body, which forbids anything
-  // that expands to extern "C" { at file scope.
+  // On-board IP101GRI Ethernet PHY (RMII).
+  // GPIO0 is the 50 MHz RMII clock input (ETH_CLOCK_GPIO0_IN); data pins are
+  // fixed by the EMAC hardware. <ETH.h> excluded — see NOTE above class definition.
   virtual bool HAS_ETH() override { return true; }
   virtual int ETH_PHY_TYPE_ID() override { return ETH_PHY_KIND_IP101; }
   virtual int ETH_PHY_ADDR_NUM() override { return 1; }
@@ -85,8 +72,9 @@ class DFRobotEdge101Hal : public Esp32Hal {
         return "RS485";
       case comm_interface::Highest:
         return "";
+      default:
+        return Esp32Hal::name_for_comm_interface(comm);
     }
-    return Esp32Hal::name_for_comm_interface(comm);
   }
 };
 
