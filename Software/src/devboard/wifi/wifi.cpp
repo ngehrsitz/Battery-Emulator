@@ -261,12 +261,10 @@ static void check_ap_button() {
       if (!ap_active) {
         ap_provisioning_expired = false;  // manual start opens a fresh provisioning window
         // Emergency recovery: bring the AP up for this boot only.
-        // Force the AP on so wifi_required() passes even on a radio-off config;
-        // do NOT persist it — reboot restores the user's preference.
-        const bool radio_was_off = (WiFi.getMode() == WIFI_MODE_NULL);
         wifiap_enabled = true;
-        if (radio_was_off) {
-          init_WiFi();  // radio was off: bring it up + register handlers
+        if (WiFi.getMode() == WIFI_MODE_NULL) {
+          // Radio was off: bring it up + register handlers
+          init_WiFi();
         } else {
           // Radio already up (STA configured): just add the AP.
           WiFi.mode(WIFI_AP_STA);
