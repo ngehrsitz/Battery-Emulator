@@ -36,6 +36,17 @@ CONFIG_LOG_DEFAULT_LEVEL_NONE=y
 # No WPA2/WPA3-Enterprise (you use plain PSK). Drops the enterprise supplicant.
 # CONFIG_ESP_WIFI_ENTERPRISE_SUPPORT is not set
 
+# Put the Arduino GPIO interrupt dispatcher in IRAM (installs the shared GPIO ISR
+# service with ESP_INTR_FLAG_IRAM and marks __onPinInterrupt IRAM_ATTR). This is a
+# CORRECTNESS fix, not a size cut: the CAN-FD add-on (ACAN2517FD via attachInterrupt)
+# must service its RX interrupt even while the flash cache is disabled, otherwise
+# edges are dropped and RX wedges (observed as EVENT_CAN_BATTERY_MISSING ~120s on
+# T-2CAN). Only actionable because hybrid mode recompiles the Arduino core from
+# source. Requires every attachInterrupt handler to be IRAM-safe: the only two
+# users of the shared GPIO service are ACAN2517FD (made IRAM-safe alongside this)
+# and MCP2515_Lite (already IRAM_ATTR). Native TWAI uses its own esp_intr_alloc.
+CONFIG_ARDUINO_ISR_IRAM=y
+
 # Root-CA bundle: the FULL store is ~69 KB and this firmware does NO on-device
 # TLS verification (the GitHub release check runs in the browser). The feature
 # CANNOT be fully disabled: arduino-esp32's NetworkClientSecure library does an
