@@ -38,7 +38,6 @@ String default_hostname();
 
 void init_WiFi_AP();
 
-extern bool wifi_enabled;
 extern bool wifiap_enabled;
 extern bool ap_active;
 extern bool mdns_enabled;

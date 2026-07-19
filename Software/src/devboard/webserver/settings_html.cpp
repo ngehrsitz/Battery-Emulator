@@ -2005,8 +2005,6 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         <h3>Integration settings</h3>
         <div style='display: grid; grid-template-columns: 1fr 1.5fr; gap: 10px; align-items: center;'>
 
-        <label style='%HAS_ETH_STYLE%'>Enable WiFi (uncheck for Ethernet only): </label>
-        <input style='%HAS_ETH_STYLE%' type='checkbox' name='WIFIENABLED' value='on' %WIFIENABLED% />
         <label>Enable ESPNow: </label>
         <input type='checkbox' name='ESPNOWENABLED' value='on' %ESPNOWENABLED% />
 
