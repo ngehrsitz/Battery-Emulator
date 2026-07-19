@@ -1,9 +1,9 @@
 #include "wifi.h"
-#include <esp_mac.h>                                                     // esp_read_mac()
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
 #include "../ethernet/ethernet.h"  // ethernet_connected()
 #include "../hal/hal.h"            // esp32hal / AP_BUTTON_PIN()
+#include "../network/hostname.h"   // custom_hostname / default_hostname()
 #include "../network/mdns.h"       // init_mDNS() / mdns_enabled
 #include "../safety/safety.h"
 #include "../utils/events.h"
@@ -17,7 +17,6 @@ uint16_t wifi_channel = 0;
 extern const char* version_number;
 #endif
 
-std::string custom_hostname;  //If not set, defaults to "battery-emulator-" + last two MAC bytes (see init_WiFi)
 std::string ssid;
 std::string password;
 std::string ssidAP;
@@ -109,14 +108,6 @@ static bool wifi_configured() {
 // and no credentials, we leave the radio off entirely.
 static bool wifi_required() {
   return wifiap_enabled || wifi_configured();
-}
-
-String default_hostname() {
-  uint8_t mac_bytes[6];
-  esp_read_mac(mac_bytes, ESP_MAC_WIFI_STA);  // reads eFuse directly, valid even before WiFi starts
-  char mac_suffix[5];
-  snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
-  return "battery-emulator-" + String(mac_suffix);
 }
 
 void init_WiFi() {

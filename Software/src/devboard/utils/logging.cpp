@@ -5,8 +5,8 @@
 #ifndef SMALL_FLASH_DEVICE
 #include <WiFi.h>
 #include <WiFiUdp.h>
+#include "../network/hostname.h"        // custom_hostname, default_hostname()
 #include "../network/network_status.h"  // network_connected()
-#include "../wifi/wifi.h"               // custom_hostname, default_hostname()
 #endif
 
 #define MAX_LINE_LENGTH_PRINTF 128

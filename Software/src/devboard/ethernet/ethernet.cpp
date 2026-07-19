@@ -3,10 +3,10 @@
 #ifdef HW_HAS_ETHERNET
 
 #include "../hal/hal.h"
-#include "../network/mdns.h"  // init_mDNS()
+#include "../network/hostname.h"  // custom_hostname (shared across interfaces)
+#include "../network/mdns.h"      // init_mDNS()
 #include "../utils/events.h"
 #include "../utils/logging.h"
-#include "../wifi/wifi.h"  // custom_hostname (shared with the WiFi stack)
 
 static bool eth_has_ip = false;
 
