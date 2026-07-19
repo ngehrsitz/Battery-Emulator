@@ -165,8 +165,10 @@ void init_events(void) {
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_AP_PASSWORD_DEFAULT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_AP_PROVISION_TIMEOUT].level = EVENT_LEVEL_INFO;
+#ifdef HW_HAS_ETHERNET
   events.entries[EVENT_ETHERNET_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_ETHERNET_DISCONNECT].level = EVENT_LEVEL_INFO;
+#endif
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
@@ -453,10 +455,12 @@ String get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_WIFI_AP_PROVISION_TIMEOUT:
       return "Wifi AP disabled due to cybersecurity concern. Change default password to keep AP "
              "constantly on! Reboot/Hold BOOT button 5-15 seconds to re-enable AP temporarily.";
+#ifdef HW_HAS_ETHERNET
     case EVENT_ETHERNET_CONNECT:
       return "Ethernet connected.";
     case EVENT_ETHERNET_DISCONNECT:
       return "Ethernet disconnected.";
+#endif
     case EVENT_MQTT_CONNECT:
       return "MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
