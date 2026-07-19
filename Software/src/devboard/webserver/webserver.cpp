@@ -1038,7 +1038,8 @@ String processor(const String& var) {
       content += "<h4>Hostname: " + html_escape(network_hostname()) + "</h4>";
       content += "<h4>IP (" + String(network_active_ifname()) + "): " + network_localIP().toString() + "</h4>";
     } else {
-      content += "<h4>Network state: " + getConnectResultString(status) + "</h4>";
+      // Reached only when no interface is up; keep this interface-agnostic
+      content += "<h4>Network state: Disconnected</h4>";
     }
 
     if (ap_active) {

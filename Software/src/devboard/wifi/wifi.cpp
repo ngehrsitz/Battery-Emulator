@@ -4,6 +4,7 @@
 #include "../../communication/nvm/comm_nvm.h"
 #include "../ethernet/ethernet.h"  // ethernet_connected()
 #include "../hal/hal.h"            // esp32hal / AP_BUTTON_PIN()
+#include "../network/network_status.h"  // network_hostname()
 #include "../safety/safety.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
@@ -122,11 +123,21 @@ String default_hostname() {
   return "battery-emulator-" + String(mac_suffix);
 }
 
-// Initialise mDNS
-static void init_mDNS() {
+// Initialise mDNS. Safe to call from either the WiFi STA GOT_IP or the Ethernet
+// GOT_IP handler: the mdns_enabled check and the one-shot guard live here, so the
+// responder begins exactly once on whichever interface acquires an IP first. Both
+// call sites run on the single arduino-esp32 arduino_events task, so the guard
+// needs no lock.
+void init_mDNS() {
 #ifndef SMALL_FLASH_DEVICE
-  // Reuse the network hostname (custom, or the "battery-emulator-<mac>" default set in init_WiFi()). Be consistent with AP too.
-  String mdnsHost = String(WiFi.getHostname());
+  static bool mdns_started = false;
+  if (!mdns_enabled || mdns_started) {
+    return;
+  }
+
+  // Reuse the active interface's hostname (Ethernet if it is up, else the WiFi
+  // custom/"battery-emulator-<mac>" default set in init_WiFi()). Consistent with AP too.
+  String mdnsHost = String(network_hostname());
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
@@ -136,6 +147,7 @@ static void init_mDNS() {
     MDNS.addService("http", "tcp", 80);
     logging.println("mDNS responder started.");
   }
+  mdns_started = true;  // set even on begin() failure — preserves prior one-shot semantics
 #endif
 }
 
@@ -421,11 +433,7 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   }
 #endif
 
-  static bool mdns_started = false;
-  if (mdns_enabled && !mdns_started) {
-    init_mDNS();
-    mdns_started = true;
-  }
+  init_mDNS();  // one-shot + mdns_enabled gate handled inside
 }
 
 // Event handler for Wi-Fi disconnection

@@ -908,13 +908,13 @@ bool init_mqtt(void) {
     create_global_sensor_configs();
   }
 
-  String hostname = String(WiFi.getHostname());
+  String hostname = String(network_hostname());
   topic_name = hostname;
   default_entity_id_prefix = hostname + "_";
   device_name = hostname;
   device_id = hostname;
 
-  String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
+  String clientId = String("BatteryEmulatorClient-") + network_hostname();
 
   mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
   mqtt_cfg.broker.address.hostname = mqtt_server.c_str();

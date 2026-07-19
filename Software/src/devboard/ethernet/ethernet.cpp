@@ -70,6 +70,7 @@ static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
       logging.print("Ethernet Got IP. IP address: ");
       logging.println(ETH.localIP().toString());
       clear_event(EVENT_ETHERNET_CONNECT);
+      init_mDNS();  // no-op if the WiFi path already started it; eth_has_ip is set above so it binds the ETH hostname
       break;
 
     case ARDUINO_EVENT_ETH_DISCONNECTED:

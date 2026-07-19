@@ -38,6 +38,11 @@ String default_hostname();
 
 void init_WiFi_AP();
 
+// Start the mDNS responder (advertises http/tcp/80) bound to the active
+// interface's hostname. Self-guarding: honours mdns_enabled and starts at most
+// once. Called from whichever interface (WiFi STA or Ethernet) first gets an IP.
+void init_mDNS();
+
 extern bool wifiap_enabled;
 extern bool ap_active;
 extern bool mdns_enabled;
