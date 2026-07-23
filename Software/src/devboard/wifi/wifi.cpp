@@ -1,24 +1,20 @@
 #include "wifi.h"
-#include <esp_mac.h>                                                     // esp_read_mac()
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
-#include "../hal/hal.h"  // esp32hal / AP_BUTTON_PIN()
+#include "../ethernet/ethernet.h"  // ethernet_connected()
+#include "../hal/hal.h"            // esp32hal / AP_BUTTON_PIN()
+#include "../network/hostname.h"   // custom_hostname / default_hostname()
+#include "../network/mdns.h"       // init_mDNS() / mdns_enabled
 #include "../safety/safety.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/logging.h"
-#ifndef SMALL_FLASH_DEVICE
-#include <ESPmDNS.h>
-#endif
 
-bool wifi_enabled = true;
 bool wifiap_enabled = true;
-bool mdns_enabled = true;    //If true, allows battery monitor te be found by .local address
 bool espnow_enabled = true;  //If true, allows battery emulator to send battery status by using ESPNow messages
 uint16_t wifi_channel = 0;
 extern const char* version_number;
 
-std::string custom_hostname;  //If not set, defaults to "battery-emulator-" + last two MAC bytes (see init_WiFi)
 std::string ssid;
 std::string password;
 std::string ssidAP;
@@ -100,33 +96,25 @@ static void check_ap_provisioning_window() {
   set_event(EVENT_WIFI_AP_PROVISION_TIMEOUT, 0);
 }
 
-String default_hostname() {
-  uint8_t mac_bytes[6];
-  esp_read_mac(mac_bytes, ESP_MAC_WIFI_STA);  // reads eFuse directly, valid even before WiFi starts
-  char mac_suffix[5];
-  snprintf(mac_suffix, sizeof(mac_suffix), "%02x%02x", mac_bytes[4], mac_bytes[5]);
-  return "battery-emulator-" + String(mac_suffix);
+// STA is configured only when the user has actually configured credentials.
+static bool wifi_configured() {
+  return !ssid.empty() && !password.empty();
 }
 
-// Initialise mDNS
-static void init_mDNS() {
-#ifndef SMALL_FLASH_DEVICE
-  // Reuse the network hostname (custom, or the "battery-emulator-<mac>" default set in init_WiFi()). Be consistent with AP too.
-  String mdnsHost = String(WiFi.getHostname());
-
-  // Initialize mDNS .local resolution
-  if (!MDNS.begin(mdnsHost)) {
-    logging.println("Error setting up mDNS responder!");
-  } else {
-    // Advertise via bonjour the web inteface so we can auto discover these battery emulators on the local network.
-    MDNS.addService("http", "tcp", 80);
-    logging.println("mDNS responder started.");
-  }
-#endif
+// The WiFi radio only needs to come up if either the AP is broadcast or STA
+// credentials are configured. On an Ethernet-only board with the AP disabled
+// and no credentials, we leave the radio off entirely.
+static bool wifi_required() {
+  return wifiap_enabled || wifi_configured();
 }
 
 void init_WiFi() {
-  DEBUG_PRINTF("init_Wifi enabled=%d, ap=%d, ssid=%s\n", wifi_enabled, wifiap_enabled, ssid.c_str());
+  if (!wifi_required()) {
+    DEBUG_PRINTF("init_Wifi: neither AP nor STA configured; skipping\n");
+    return;
+  }
+
+  DEBUG_PRINTF("init_Wifi ap=%d, ssid=%s\n", wifiap_enabled, ssid.c_str());
 
   // Keep the WiFi driver's mode/config changes in RAM instead of NVS. Credentials
   // are stored in our own Preferences and reapplied at boot, so driver-level
@@ -157,7 +145,7 @@ void init_WiFi() {
   if (wifiap_enabled) {
     WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
     init_WiFi_AP();
-  } else if (wifi_enabled) {
+  } else {
     WiFi.mode(WIFI_STA);  // Only Router connection
   }
 
@@ -200,7 +188,7 @@ static void check_ap_button() {
 
   if (!ap_button_inited) {
     // Configure lazily, after boot, so we never disturb GPIO0 strapping at reset.
-    pinMode(pin, INPUT_PULLUP);
+    pinMode(pin, (pin < GPIO_NUM_34) ? INPUT_PULLUP : INPUT);
     ap_button_inited = true;
     return;  // let the pull-up settle before the first read
   }
@@ -241,9 +229,16 @@ static void check_ap_button() {
     } else if (held >= AP_BUTTON_AP_MS) {
       if (!ap_active) {
         ap_provisioning_expired = false;  // manual start opens a fresh provisioning window
-        WiFi.mode(WIFI_AP_STA);
-        init_WiFi_AP();  // sets ap_active, restarts the provisioning window timer
-        logging.println("AP started from the board button.");
+        // Emergency recovery: bring the AP up for this boot only.
+        wifiap_enabled = true;
+        if (WiFi.getMode() == WIFI_MODE_NULL) {
+          // Radio was off: bring it up + register handlers
+          init_WiFi();
+        } else {
+          // Radio already up (STA configured): just add the AP.
+          WiFi.mode(WIFI_AP_STA);
+          init_WiFi_AP();  // sets ap_active
+        }
       }
     }
   }
@@ -252,8 +247,12 @@ static void check_ap_button() {
 
 // Task to monitor Wi-Fi status and handle reconnections
 void wifi_monitor() {
-  check_ap_button();
+  check_ap_button();  // must always run: emergency-recovery path even when the radio is off
   check_ap_provisioning_window();
+
+  if (!wifi_required()) {
+    return;  // radio not brought up (no AP, no STA credentials)
+  }
 
   if (ssid.empty() || password.empty()) {
     return;
@@ -297,12 +296,21 @@ void wifi_monitor() {
           }
         }
       } else {
-        // If no previous connection, force a full connection attempt
+        // If no previous connection, force a full connection attempt. On boards
+        // with Ethernet, skip forcing the AP up while Ethernet is online — the
+        // reconnect timeout that got us here gives Ethernet ample time to obtain
+        // an IP, so a live Ethernet link means we don't need a recovery AP.
+#ifdef HW_HAS_ETHERNET
+        const bool eth_online = ethernet_connected();
+#else
+        const bool eth_online = false;
+#endif
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
-          logging.println("No previous OK connection, force a full connection attempt...");
           // Don't resurrect the rescue AP if its provisioning window already
           // expired with the factory-default password still in place.
-          if (!ap_provisioning_expired) {
+          if (!ap_provisioning_expired && !eth_online) {
+            logging.println(
+                "No previous OK connection, bringing up recovery AP and forcing a full connection attempt...");
             wifiap_enabled = true;
             WiFi.mode(WIFI_AP_STA);
             init_WiFi_AP();
@@ -378,11 +386,7 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
     logging.printf("Bootup complete, running version %s\n", version_number);
   }
 
-  static bool mdns_started = false;
-  if (mdns_enabled && !mdns_started) {
-    init_mDNS();
-    mdns_started = true;
-  }
+  init_mDNS();  // one-shot + mdns_enabled gate handled inside
 }
 
 // Event handler for Wi-Fi disconnection

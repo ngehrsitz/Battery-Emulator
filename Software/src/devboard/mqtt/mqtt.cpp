@@ -9,6 +9,7 @@
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../devboard/hal/hal.h"
+#include "../../devboard/network/network_status.h"
 #include "../../devboard/safety/safety.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
@@ -907,13 +908,13 @@ bool init_mqtt(void) {
     create_global_sensor_configs();
   }
 
-  String hostname = String(WiFi.getHostname());
+  String hostname = String(network_hostname());
   topic_name = hostname;
   default_entity_id_prefix = hostname + "_";
   device_name = hostname;
   device_id = hostname;
 
-  String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
+  String clientId = String("BatteryEmulatorClient-") + network_hostname();
 
   mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
   mqtt_cfg.broker.address.hostname = mqtt_server.c_str();
@@ -942,8 +943,8 @@ bool init_mqtt(void) {
 }
 
 void mqtt_client_loop(void) {
-  // Only attempt to publish/reconnect MQTT if Wi-Fi is connected and checkTimmer is elapsed
-  if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
+  // Only attempt to publish/reconnect MQTT if network is connected and checkTimmer is elapsed
+  if (check_global_timer.elapsed() && network_connected()) {
 
     if (client_started == false) {
       // Configure timer with the loaded interval on first use

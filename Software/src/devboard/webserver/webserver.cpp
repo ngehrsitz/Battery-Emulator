@@ -15,6 +15,7 @@
 #include "../../devboard/safety/safety.h"
 #include "../../inverter/INVERTERS.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../network/network_status.h"  // network_connected() / network_localIP()
 #include "../sdcard/sdcard.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
@@ -1035,18 +1036,20 @@ String processor(const String& var) {
     }
 
     wl_status_t status = WiFi.status();
-    // Display ssid of network connected to and, if connected to the WiFi, its own IP
+    // SSID/RSSI/channel are WiFi-specific; only show them when the STA is connected.
     content += "<h4>SSID: " + html_escape(ssid.c_str());
     if (status == WL_CONNECTED) {
       // Get and display the signal strength (RSSI) and channel
       content += " RSSI:" + String(WiFi.RSSI()) + " dBm Ch: " + String(WiFi.channel());
     }
     content += "</h4>";
-    if (status == WL_CONNECTED) {
-      content += "<h4>Hostname: " + html_escape(WiFi.getHostname()) + "</h4>";
-      content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
+    // Reachability/hostname/IP reflect the active interface
+    if (network_connected()) {
+      content += "<h4>Hostname: " + html_escape(network_hostname()) + "</h4>";
+      content += "<h4>IP (" + String(network_active_ifname()) + "): " + network_localIP().toString() + "</h4>";
     } else {
-      content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
+      // Reached only when no interface is up; keep this interface-agnostic
+      content += "<h4>Network state: Disconnected</h4>";
     }
 
     if (ap_active) {
