@@ -1,7 +1,11 @@
 #ifndef SDCARD_H
 #define SDCARD_H
 
-#if defined(SD_VIA_SDIO)
+#if defined(SD_VIA_SPI) && defined(SD_VIA_SDIO)
+#error "Define at most one of SD_VIA_SPI / SD_VIA_SDIO"
+#endif
+
+#if defined(SD_VIA_SPI) || defined(SD_VIA_SDIO)
 #define SD_CARD_ENABLED
 #endif
 
@@ -14,9 +18,13 @@
 
 #ifdef SD_CARD_ENABLED
 
+#ifdef SD_VIA_SPI
+#include <SD.h>
+using SdCard = fs::SDFS;
+#else  // SD_VIA_SDIO
 #include <SD_MMC.h>
-
 using SdCard = fs::SDMMCFS;
+#endif
 
 void init_logging_buffers();
 void deinit_logging_buffers();

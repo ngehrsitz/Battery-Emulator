@@ -20,7 +20,11 @@ bool delete_log_file = false;
 bool sd_card_active = false;
 
 SdCard& sdcard() {
+#ifdef SD_VIA_SPI
+  return SD;
+#else  // SD_VIA_SDIO
   return SD_MMC;
+#endif
 }
 
 void delete_can_log() {
@@ -209,6 +213,21 @@ bool init_sdcard() {
   auto mosi_pin = esp32hal->SD_MOSI_PIN();
   auto sclk_pin = esp32hal->SD_SCLK_PIN();
 
+#ifdef SD_VIA_SPI
+  auto cs_pin = esp32hal->SD_CS_PIN();
+
+  if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin, cs_pin)) {
+    return false;
+  }
+
+  static SPIClass* sd_spi = new SPIClass(VSPI);
+  sd_spi->begin(sclk_pin, miso_pin, mosi_pin, cs_pin);
+
+  constexpr uint32_t SD_SPI_FREQ = 20 * 1000000;  // 20 MHz
+  constexpr uint8_t SD_MAX_OPEN_FILES = 5;        // library default
+
+  bool mounted = SD.begin(cs_pin, *sd_spi, SD_SPI_FREQ, "/root", SD_MAX_OPEN_FILES, true);
+#else  // SD_VIA_SDIO
   if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin)) {
     return false;
   }
@@ -216,7 +235,10 @@ bool init_sdcard() {
   pinMode(miso_pin, INPUT_PULLUP);
 
   SD_MMC.setPins(sclk_pin, mosi_pin, miso_pin);
-  if (!SD_MMC.begin("/root", true, true, SDMMC_FREQ_HIGHSPEED)) {
+  bool mounted = SD_MMC.begin("/root", true, true, SDMMC_FREQ_HIGHSPEED);
+#endif
+
+  if (!mounted) {
     set_event_latched(EVENT_SD_INIT_FAILED, 0);
     logging.println("SD Card initialization failed!");
     return false;
