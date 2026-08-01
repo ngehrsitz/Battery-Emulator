@@ -1,7 +1,11 @@
 #ifndef SDCARD_H
 #define SDCARD_H
 
+#ifdef SD_OVER_SPI
+#include <SD.h>
+#else
 #include <SD_MMC.h>
+#endif
 #include "../../communication/can/comm_can.h"
 #include "../hal/hal.h"
 #include "../utils/events.h"
@@ -9,11 +13,20 @@
 #define CAN_LOG_FILE "/canlog.txt"
 #define LOG_FILE "/log.txt"
 
+#ifdef SD_OVER_SPI
+using SdCard = fs::SDFS;
+#else
+using SdCard = fs::SDMMCFS;
+#endif
+
 void init_logging_buffers();
 void deinit_logging_buffers();
 
 bool init_sdcard();
-void log_sdcard_details();
+void log_sdcard_details(SdCard& card);
+
+// Returns the concrete board's SD filesystem type
+SdCard& sdcard_fs();
 
 void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir);
 void write_can_frame_to_sdcard();
