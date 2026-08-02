@@ -1,13 +1,25 @@
 #ifndef SDCARD_H
 #define SDCARD_H
 
-#include <SD_MMC.h>
+// SD support is gated at compile time. A board with an SD slot defines
+// SD_VIA_SDIO; boards without a slot define nothing, compile no SD code, and
+// lib_ignore both SD libraries. All callers of the SD API must guard their
+// calls with #ifdef SD_CARD_ENABLED so a missed guard fails at compile time on
+// slotless boards.
+#if defined(SD_VIA_SDIO)
+#define SD_CARD_ENABLED
+#endif
+
 #include "../../communication/can/comm_can.h"
 #include "../hal/hal.h"
 #include "../utils/events.h"
 
 #define CAN_LOG_FILE "/canlog.txt"
 #define LOG_FILE "/log.txt"
+
+#ifdef SD_CARD_ENABLED
+
+#include <SD_MMC.h>
 
 void init_logging_buffers();
 void deinit_logging_buffers();
@@ -27,5 +39,7 @@ void pause_log_writing();
 
 void add_log_to_buffer(const uint8_t* buffer, size_t size);
 void write_log_to_sdcard();
+
+#endif  // SD_CARD_ENABLED
 
 #endif  // SDCARD_H
