@@ -14,9 +14,9 @@
 
 #ifdef SD_CARD_ENABLED
 
-#include <SD_MMC.h>
+#include <SD.h>
 
-using SdCard = fs::SDMMCFS;
+using SdCard = fs::SDFS;
 
 void init_logging_buffers();
 void deinit_logging_buffers();
