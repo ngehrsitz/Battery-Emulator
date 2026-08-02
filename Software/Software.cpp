@@ -124,6 +124,7 @@ void connectivity_loop(void*) {
 }
 
 void logging_loop(void*) {
+#ifdef SD_CARD_ENABLED
   bool sd_initialized = false;
 
   init_logging_buffers();
@@ -145,6 +146,7 @@ void logging_loop(void*) {
       write_can_frame_to_sdcard();
     }
   }
+#endif  // SD_CARD_ENABLED
   // Delete the logging task only if SD failed to initialize to prevent panic.
   vTaskDelete(NULL);
 }
@@ -744,10 +746,12 @@ void setup() {
 
   led_init();
 
+#ifdef SD_CARD_ENABLED
   if (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active) {
     xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                             &logging_loop_task, esp32hal->WIFICORE());
   }
+#endif  // SD_CARD_ENABLED
 
   init_contactors();
 

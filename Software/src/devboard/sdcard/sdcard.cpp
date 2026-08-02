@@ -1,4 +1,7 @@
 #include "sdcard.h"
+
+#ifdef SD_CARD_ENABLED
+
 #include "freertos/ringbuf.h"
 
 File can_log_file;
@@ -16,9 +19,9 @@ bool delete_log_file = false;
 
 bool sd_card_active = false;
 
-#ifdef SD_OVER_SPI
+#ifdef SD_VIA_SPI
 static SdCard* sd_card = &SD;  // SPI slot
-#else
+#else  // SD_VIA_SDIO
 static SdCard* sd_card = &SD_MMC;  // SDIO slot
 #endif
 
@@ -212,7 +215,7 @@ bool init_sdcard() {
   auto mosi_pin = esp32hal->SD_MOSI_PIN();
   auto sclk_pin = esp32hal->SD_SCLK_PIN();
 
-#ifdef SD_OVER_SPI
+#ifdef SD_VIA_SPI
   auto cs_pin = esp32hal->SD_CS_PIN();
 
   if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin, cs_pin)) {
@@ -226,7 +229,7 @@ bool init_sdcard() {
   constexpr uint8_t SD_MAX_OPEN_FILES = 5;        // library default
 
   bool mounted = SD.begin(cs_pin, *sd_spi, SD_SPI_FREQ, "/root", SD_MAX_OPEN_FILES, true);
-#else
+#else  // SD_VIA_SDIO
   if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin)) {
     return false;
   }
@@ -288,3 +291,5 @@ void log_sdcard_details(SdCard& card) {
     logging.println(" MB");
   }
 }
+
+#endif  // SD_CARD_ENABLED
