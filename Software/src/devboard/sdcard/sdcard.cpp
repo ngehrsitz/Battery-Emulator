@@ -19,6 +19,10 @@ bool delete_log_file = false;
 
 bool sd_card_active = false;
 
+SdCard& sdcard() {
+  return SD_MMC;
+}
+
 void delete_can_log() {
   can_logging_paused = true;
   delete_can_file = true;
@@ -26,7 +30,7 @@ void delete_can_log() {
 
 void resume_can_writing() {
   can_logging_paused = false;
-  can_log_file = SD_MMC.open(CAN_LOG_FILE, FILE_APPEND);
+  can_log_file = sdcard().open(CAN_LOG_FILE, FILE_APPEND);
   can_file_open = true;
 }
 
@@ -40,13 +44,13 @@ void delete_log() {
     log_file.close();
     log_file_open = false;
   }
-  SD_MMC.remove(LOG_FILE);
+  sdcard().remove(LOG_FILE);
   logging_paused = false;
 }
 
 void resume_log_writing() {
   logging_paused = false;
-  log_file = SD_MMC.open(LOG_FILE, FILE_APPEND);
+  log_file = sdcard().open(LOG_FILE, FILE_APPEND);
   log_file_open = true;
 }
 
@@ -112,7 +116,7 @@ void write_can_frame_to_sdcard() {
         can_file_open = false;
       }
       if (delete_can_file) {
-        SD_MMC.remove(CAN_LOG_FILE);
+        sdcard().remove(CAN_LOG_FILE);
         delete_can_file = false;
         can_logging_paused = false;
       }
@@ -121,7 +125,7 @@ void write_can_frame_to_sdcard() {
     }
 
     if (can_file_open == false) {
-      can_log_file = SD_MMC.open(CAN_LOG_FILE, FILE_APPEND);
+      can_log_file = sdcard().open(CAN_LOG_FILE, FILE_APPEND);
       can_file_open = true;
     }
 
@@ -160,7 +164,7 @@ void write_log_to_sdcard() {
     }
 
     if (log_file_open == false) {
-      log_file = SD_MMC.open(LOG_FILE, FILE_APPEND);
+      log_file = sdcard().open(LOG_FILE, FILE_APPEND);
       log_file_open = true;
     }
 
@@ -223,15 +227,15 @@ bool init_sdcard() {
 
   sd_card_active = true;
 
-  log_sdcard_details();
+  log_sdcard_details(sdcard());
 
   return true;
 }
 
-void log_sdcard_details() {
+void log_sdcard_details(SdCard& card) {
 
   logging.print("SD Card Type: ");
-  switch (SD_MMC.cardType()) {
+  switch (card.cardType()) {
     case CARD_MMC:
       logging.println("MMC");
       break;
@@ -249,17 +253,17 @@ void log_sdcard_details() {
       break;
   }
 
-  if (SD_MMC.cardType() != CARD_NONE) {
+  if (card.cardType() != CARD_NONE) {
     logging.print("SD Card Size: ");
-    logging.print(SD_MMC.cardSize() / 1024 / 1024);
+    logging.print(card.cardSize() / 1024 / 1024);
     logging.println(" MB");
 
     logging.print("Total space: ");
-    logging.print(SD_MMC.totalBytes() / 1024 / 1024);
+    logging.print(card.totalBytes() / 1024 / 1024);
     logging.println(" MB");
 
     logging.print("Used space: ");
-    logging.print(SD_MMC.usedBytes() / 1024 / 1024);
+    logging.print(card.usedBytes() / 1024 / 1024);
     logging.println(" MB");
   }
 }

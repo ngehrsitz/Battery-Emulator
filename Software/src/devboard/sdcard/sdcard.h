@@ -16,11 +16,16 @@
 
 #include <SD_MMC.h>
 
+using SdCard = fs::SDMMCFS;
+
 void init_logging_buffers();
 void deinit_logging_buffers();
 
 bool init_sdcard();
-void log_sdcard_details();
+void log_sdcard_details(SdCard& card);
+
+// Returns a reference to the SD card filesystem.
+SdCard& sdcard();
 
 void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir);
 void write_can_frame_to_sdcard();
