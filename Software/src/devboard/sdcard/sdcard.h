@@ -2,7 +2,7 @@
 #define SDCARD_H
 
 #ifdef SDCARD
-#include <SD_MMC.h>
+#include <SD.h>
 #include "../../communication/can/comm_can.h"
 #include "../hal/hal.h"
 #include "../utils/events.h"
@@ -15,6 +15,9 @@ void deinit_logging_buffers();
 
 bool init_sdcard();
 void log_sdcard_details();
+
+// Returns a reference to the SD card filesystem.
+fs::SDFS& sdcard();
 
 void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir);
 void write_can_frame_to_sdcard();
