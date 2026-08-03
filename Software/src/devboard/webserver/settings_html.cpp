@@ -698,6 +698,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("WEBENABLED") ? "checked" : "";
   }
 
+#ifdef SDCARD
   if (var == "CANLOGSD") {
     return settings.getBool("CANLOGSD") ? "checked" : "";
   }
@@ -705,6 +706,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
   }
+#endif  // SDCARD
   if (var == "SYSLOGEN") {
     return settings.getBool("SYSLOGEN") ? "checked" : "";
   }
