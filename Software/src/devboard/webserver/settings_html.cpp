@@ -1147,6 +1147,21 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define GPIOOPT6_SETTING ""
 #endif
 
+#ifdef SDCARD
+#define SD_SETTING_HTML \
+  R"rawliteral(
+        <label>General logging to SD card: </label>
+        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED%
+            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
+
+        <label>CAN message logging to SD card: </label>
+        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD%
+            title="Store incoming/outgoing CAN messages on on SD card. Only works on hardware with SD-card slot." />
+  )rawliteral"
+#else
+#define SD_SETTING_HTML ""
+#endif  // SDCARD
+
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
         <label>General logging to syslog server: </label>
@@ -2154,19 +2169,11 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         }
         </script>
 
-        <label>General logging to SD card: </label>
-        <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED% 
-            title="Store logs on an SD card. Only works on hardware with SD-card slot." />
-
         <label>CAN message logging via USB serial: </label>
-        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%  
+        <input type='checkbox' name='CANLOGUSB' value='on' %CANLOGUSB%
             title="WARNING: Causes performance issues! Log incoming/outgoing CAN messages via USB cable. Avoid if possible!" />
 
-        <label>CAN message logging to SD card: </label>
-        <input type='checkbox' name='CANLOGSD' value='on' %CANLOGSD% 
-            title="Store incoming/outgoing CAN messages on on SD card. Only works on hardware with SD-card slot." />
-
-        )rawliteral" SYSLOG_SETTING_HTML R"rawliteral(
+        )rawliteral" SD_SETTING_HTML SYSLOG_SETTING_HTML R"rawliteral(
 
         </div>
         </div>
