@@ -12,40 +12,62 @@
 bool previous_message_was_newline = true;
 
 // ---- USB debug-log sink ----
-// Writes only when the TX ring buffer has room. This path runs in the core task
-// (and others): it must never block on a host that stops draining the port
-// (EVENT_TASK_OVERRUN). Lost output is reported with a marker once the port
-// recovers, and the marker is always flushed before output resumes so the gap
-// is visible at the right place. CAN frame logging has its own equivalent
-// implementation of this pattern in comm_can.cpp.
+// A logical log line reaches this sink as several separate writes (timestamp,
+// then message, then the "\r\n" from Arduino's Print::println()). We must make
+// the drop-or-keep decision ONCE per whole line, not per fragment: gating each
+// fragment independently means a full TX buffer can drop just the trailing
+// "\r\n" (or the message) while keeping the timestamp, so lines run together
+// and every following timestamp appears mid-line. So we accumulate into a line
+// buffer and only touch Serial when the line completes ('\n') or the buffer
+// fills. This path runs in the core task (and others): it must never block on a
+// host that stops draining the port (EVENT_TASK_OVERRUN). Lost lines are
+// reported with a marker once the port recovers, and the marker is always
+// flushed before output resumes so the gap is visible at the right place. CAN
+// frame logging has its own equivalent implementation of this pattern in
+// comm_can.cpp.
 // The drop counter is not atomic; concurrent writers can at worst miscount
 // drops slightly, which only affects the marker, never the data path.
-static uint32_t usb_log_chunks_dropped = 0;
+static uint32_t usb_log_lines_dropped = 0;
+#define USB_LOG_LINE_MAX 160
+static uint8_t usb_log_line[USB_LOG_LINE_MAX];
+static size_t usb_log_line_len = 0;
 
-static void usb_log_write(const uint8_t* buffer, size_t size) {
+// Flush one assembled line to Serial, or drop it whole if the port has no room.
+static void usb_log_flush_line(void) {
+  if (usb_log_line_len == 0) {
+    return;
+  }
   static const char marker[] = "\n[USB log output dropped, host not draining port]\n";
-  size_t needed = size;
-  if (usb_log_chunks_dropped > 0) {
+  size_t needed = usb_log_line_len;
+  if (usb_log_lines_dropped > 0) {
     needed += sizeof(marker) - 1;
   }
   if ((size_t)Serial.availableForWrite() < needed) {
-    usb_log_chunks_dropped++;
+    usb_log_lines_dropped++;
+    usb_log_line_len = 0;  // drop the whole line, never a fragment of it
     return;
   }
-  if (usb_log_chunks_dropped > 0) {
+  if (usb_log_lines_dropped > 0) {
     Serial.write((const uint8_t*)marker, sizeof(marker) - 1);
-    usb_log_chunks_dropped = 0;
+    usb_log_lines_dropped = 0;
   }
-  // Strip \r — Arduino Print::println() emits "\r\n"; the \r resets the cursor mid-line in terminals
-  const uint8_t* p = buffer;
-  const uint8_t* end = buffer + size;
-  while (p < end) {
-    const uint8_t* cr = (const uint8_t*)memchr(p, '\r', end - p);
-    size_t chunk = cr ? (size_t)(cr - p) : (size_t)(end - p);
-    if (chunk > 0) {
-      Serial.write(p, chunk);
+  Serial.write(usb_log_line, usb_log_line_len);
+  usb_log_line_len = 0;
+}
+
+static void usb_log_write(const uint8_t* buffer, size_t size) {
+  for (size_t i = 0; i < size; i++) {
+    uint8_t c = buffer[i];
+    if (c == '\r') {
+      continue;  // normalize CRLF -> LF; the '\n' is kept and terminates the line
     }
-    p += chunk + (cr ? 1 : 0);
+    if (usb_log_line_len < USB_LOG_LINE_MAX) {
+      usb_log_line[usb_log_line_len++] = c;
+    }
+    // Line complete, or buffer full (a pathologically long line): commit it.
+    if (c == '\n' || usb_log_line_len == USB_LOG_LINE_MAX) {
+      usb_log_flush_line();
+    }
   }
 }
 
@@ -330,8 +352,7 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
     return 0;
   }
 
-  // Skip timestamp for bare line-ending writes
-  if (previous_message_was_newline && buffer[0] != '\r' && buffer[0] != '\n') {
+  if (previous_message_was_newline) {
     add_timestamp(size);
   }
 
