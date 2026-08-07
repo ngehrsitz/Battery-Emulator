@@ -31,7 +31,7 @@ def identify_version():
         return f"{tag}dev-{sha} ({branch})"
 
     except Exception as e:
-        print(f"identify_build.py: failed to identify version: {e}")
+        print(f"{os.path.basename(__file__)}: failed to identify version: {e}")
         return "unknown"
 
 
