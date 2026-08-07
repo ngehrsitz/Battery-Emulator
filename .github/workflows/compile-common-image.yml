@@ -43,6 +43,8 @@ jobs:
     steps:
     - uses: actions/checkout@v7
       name: Checkout code
+      with:
+        fetch-depth: 0
 
     # The env cache should contain the PlatformIO installation, as well as our
     # previously built custom sdkconfig image. We can avoid redownloading
