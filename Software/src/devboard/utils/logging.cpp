@@ -320,14 +320,8 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
     return 0;
   }
 
-  bool is_line_ending_only = true;
-  for (size_t i = 0; i < size; i++) {
-    if (buffer[i] != '\r' && buffer[i] != '\n') {
-      is_line_ending_only = false;
-      break;
-    }
-  }
-  if (previous_message_was_newline && !is_line_ending_only) {
+  // Skip timestamp for bare line-ending writes
+  if (previous_message_was_newline && buffer[0] != '\r' && buffer[0] != '\n') {
     add_timestamp(size);
   }
 
