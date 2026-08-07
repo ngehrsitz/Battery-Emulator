@@ -36,7 +36,17 @@ static void usb_log_write(const uint8_t* buffer, size_t size) {
     Serial.write((const uint8_t*)marker, sizeof(marker) - 1);
     usb_log_chunks_dropped = 0;
   }
-  Serial.write(buffer, size);
+  // Strip \r — Arduino Print::println() emits "\r\n"; the \r resets the cursor mid-line in terminals
+  const uint8_t* p = buffer;
+  const uint8_t* end = buffer + size;
+  while (p < end) {
+    const uint8_t* cr = (const uint8_t*)memchr(p, '\r', end - p);
+    size_t chunk = cr ? (size_t)(cr - p) : (size_t)(end - p);
+    if (chunk > 0) {
+      Serial.write(p, chunk);
+    }
+    p += chunk + (cr ? 1 : 0);
+  }
 }
 
 // ---- Remote syslog sink ----
