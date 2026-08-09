@@ -127,13 +127,12 @@ bool init_CAN() {
     auto mosi_pin = esp32hal->MCP2515_MOSI();
     auto rst_pin = esp32hal->MCP2515_RST();
 
-    if (!esp32hal->alloc_pins("CAN", cs_pin, int_pin, sck_pin, miso_pin, mosi_pin)) {
-      // If the only conflict is that the SD card already owns the shared bus pins,
-      // allocate just the CAN-exclusive pins (CS + INT) and reuse the bus.
-      if (!esp32hal->sd_shares_spi_bus(esp32hal->MCP2515_BUS()) ||
-          !esp32hal->alloc_pins("CAN", cs_pin, int_pin)) {
-        return false;
-      }
+    if (!esp32hal->alloc_pins("CAN", cs_pin, int_pin)) {
+      return false;
+    }
+    if (!esp32hal->sd_shares_spi_bus(esp32hal->MCP2515_BUS()) &&
+        !esp32hal->alloc_pins("CAN", sck_pin, miso_pin, mosi_pin)) {
+      return false;
     }
 
     logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
@@ -180,12 +179,9 @@ bool init_CAN() {
     auto sdo_pin = esp32hal->MCP2517_SDO();
     auto sdi_pin = esp32hal->MCP2517_SDI();
 
-    if (!esp32hal->alloc_pins("CANFD", sck_pin, sdo_pin, sdi_pin)) {
-      // If the only conflict is that the SD card already owns the shared bus pins,
-      // proceed without re-allocating them (SD already initialized the bus).
-      if (!esp32hal->sd_shares_spi_bus(esp32hal->MCP2517_BUS())) {
-        return false;
-      }
+    if (!esp32hal->sd_shares_spi_bus(esp32hal->MCP2517_BUS()) &&
+        !esp32hal->alloc_pins("CANFD", sck_pin, sdo_pin, sdi_pin)) {
+      return false;
     }
 
     SPI2517 = new SPIClass(esp32hal->MCP2517_BUS());
