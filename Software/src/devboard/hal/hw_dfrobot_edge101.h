@@ -26,10 +26,11 @@ class DFRobotEdge101Hal : public Esp32Hal {
 
   // HSPI bus: SCK=14 is native; MOSI=12 is HSPI native MISO role (matrix-routed for MOSI); MISO=39 via matrix.
   SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_14, GPIO_NUM_12, GPIO_NUM_39}; }
+  SPIClass& SD_SPI()      override { return _spi_hspi; }
+  SPIClass& MCP2515_SPI() override { return _spi_hspi; }
 
   // microSD on HSPI, CS=5
 #ifdef SDCARD
-  uint8_t SD_SPI_BUS() override { return HSPI; }
   gpio_num_t SD_CS_PIN() override { return GPIO_NUM_5; }
 #endif  // SDCARD
 

@@ -24,6 +24,7 @@ class DevKitHal : public Esp32Hal {
   // VSPI bus: MCP2515 / HSPI bus: MCP2517
   SpiBus VSPI_bus() override { return {VSPI, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_19}; }
   SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_33, GPIO_NUM_32, GPIO_NUM_35}; }
+  SPIClass& MCP2515_SPI() override { return _spi_vspi; }
 
   // CAN_ADDON
   virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_18; }

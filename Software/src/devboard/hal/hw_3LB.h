@@ -16,6 +16,7 @@ class ThreeLBHal : public Esp32Hal {
   // VSPI bus: MCP2515 / HSPI bus: MCP2517
   SpiBus VSPI_bus() override { return {VSPI, GPIO_NUM_12, GPIO_NUM_5,  GPIO_NUM_34}; }
   SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_17, GPIO_NUM_23, GPIO_NUM_39}; }
+  SPIClass& MCP2515_SPI() override { return _spi_vspi; }
 
   // CAN_ADDON
   virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_18; }

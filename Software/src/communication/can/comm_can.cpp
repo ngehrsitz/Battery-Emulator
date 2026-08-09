@@ -140,7 +140,7 @@ bool init_CAN() {
       delay(100);
     }
 
-    SPI2515 = &esp32hal->spi(esp32hal->MCP2515_BUS());
+    SPI2515 = &esp32hal->MCP2515_SPI();
     can2515 = new MCP2515_Lite(*SPI2515, cs_pin, int_pin);
 
     quartz_frequency = esp32hal->MCP2515_FREQ();
@@ -166,7 +166,7 @@ bool init_CAN() {
   auto fdAddonIt_2 = can_receivers.find(CANFD_ADDON_MCP2518_2);
 
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end() || fdAddonIt_2 != can_receivers.end()) {
-    SPI2517 = &esp32hal->spi(esp32hal->MCP2517_BUS());
+    SPI2517 = &esp32hal->MCP2517_SPI();
   }
 
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end()) {
@@ -224,11 +224,10 @@ bool init_CAN() {
       return false;
     }
 
-    if (esp32hal->MCP2517_BUS() == esp32hal->MCP2517_BUS2()) {
-      // Use the same bus for both CAN FD chips
+    if (&esp32hal->MCP2517_SPI() == &esp32hal->MCP2517_SPI2()) {
       SPI2517_2 = SPI2517;
     } else {
-      SPI2517_2 = &esp32hal->spi(esp32hal->MCP2517_BUS2());
+      SPI2517_2 = &esp32hal->MCP2517_SPI2();
     }
 
     canfd_2 = new ACAN2517FD(cs_pin, *SPI2517_2, int_pin);

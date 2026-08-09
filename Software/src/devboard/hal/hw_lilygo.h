@@ -22,7 +22,9 @@ class LilyGoHal : public Esp32Hal {
   // VSPI bus: CAN add-on (MCP2515/MCP2517)
   // HSPI bus: SD card (SCK=14 is HSPI native)
   SpiBus VSPI_bus() override { return {VSPI, GPIO_NUM_12, GPIO_NUM_5,  GPIO_NUM_34}; }
-  SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_14, GPIO_NUM_15, GPIO_NUM_2};  }
+  SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_14, GPIO_NUM_15, GPIO_NUM_2}; }
+  SPIClass& MCP2515_SPI() override { return _spi_vspi; }
+  SPIClass& MCP2517_SPI() override { return _spi_vspi; }
 
   // CAN_ADDON
   virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_18; }

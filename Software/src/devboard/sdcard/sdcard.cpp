@@ -207,7 +207,7 @@ bool init_sdcard() {
     return false;
   }
 
-  SPIClass& sd_spi = esp32hal->spi(esp32hal->SD_SPI_BUS());
+  SPIClass& sd_spi = esp32hal->SD_SPI();
 
   constexpr uint32_t SD_SPI_FREQ = 20 * 1000000;  // 20 MHz
   constexpr uint8_t SD_MAX_OPEN_FILES = 5;        // library default
