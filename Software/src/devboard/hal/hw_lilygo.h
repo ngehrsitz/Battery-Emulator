@@ -79,27 +79,27 @@ class LilyGoHal : public Esp32Hal {
   // SD card
   uint8_t SD_SPI_BUS() override { return VSPI; }
   virtual gpio_num_t SD_MISO_PIN() {
-    if (user_selected_sdcard_enabled) {
+    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
       return GPIO_NUM_2;
-    }  //Else SD disabled, display on these pins
+    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
     return GPIO_NUM_NC;
   }
   virtual gpio_num_t SD_MOSI_PIN() {
-    if (user_selected_sdcard_enabled) {
+    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
       return GPIO_NUM_15;
-    }  //Else SD disabled, display on these pins
+    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
     return GPIO_NUM_NC;
   }
   virtual gpio_num_t SD_SCLK_PIN() {
-    if (user_selected_sdcard_enabled) {
+    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
       return GPIO_NUM_14;
-    }  //Else SD disabled, display on these pins
+    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
     return GPIO_NUM_NC;
   }
   virtual gpio_num_t SD_CS_PIN() {
-    if (user_selected_sdcard_enabled) {
+    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
       return GPIO_NUM_13;
-    }  //Else SD disabled, display on these pins
+    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
     return GPIO_NUM_NC;
   }
 #endif  // SDCARD

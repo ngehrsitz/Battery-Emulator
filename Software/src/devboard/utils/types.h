@@ -169,8 +169,6 @@ enum class GPIOOPT4 {
   I2C_DISPLAY_SSD1306 = 1,
   Highest
 };
-// Shared across all boards with an SD card slot: true = SD card enabled (default)
-extern bool user_selected_sdcard_enabled;
 #ifdef HW_STARK
 enum class GPIOOPT5 {
   // StarkCMR: Default, Gpio23 as BMS power

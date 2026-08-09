@@ -106,7 +106,6 @@ GPIOOPT2 user_selected_gpioopt2 = GPIOOPT2::DEFAULT_OPT_BMS_POWER_18;
 GPIOOPT3 user_selected_gpioopt3 = GPIOOPT3::DEFAULT_SMA_ENABLE_05;
 bool user_selected_inverter_offgrid = false;
 GPIOOPT4 user_selected_gpioopt4 = GPIOOPT4::DEFAULT_SD_CARD;
-bool user_selected_sdcard_enabled = true;
 #ifdef HW_STARK
 GPIOOPT5 user_selected_gpioopt5 = GPIOOPT5::DEFAULT_BMS_POWER_23;
 #endif

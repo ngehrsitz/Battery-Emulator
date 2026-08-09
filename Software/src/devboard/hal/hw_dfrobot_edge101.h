@@ -25,13 +25,12 @@ class DFRobotEdge101Hal : public Esp32Hal {
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_35; }
 
   // microSD (SPI on VSPI: SCK 14, MOSI 12, MISO 39, CS 5)
-  // When user_selected_sdcard_enabled is false these return NC, freeing pin 5 for a second CAN device.
 #ifdef SDCARD
   uint8_t SD_SPI_BUS() override { return VSPI; }
-  virtual gpio_num_t SD_MOSI_PIN() { return user_selected_sdcard_enabled ? GPIO_NUM_12 : GPIO_NUM_NC; }
-  virtual gpio_num_t SD_MISO_PIN() { return user_selected_sdcard_enabled ? GPIO_NUM_39 : GPIO_NUM_NC; }
-  virtual gpio_num_t SD_SCLK_PIN() { return user_selected_sdcard_enabled ? GPIO_NUM_14 : GPIO_NUM_NC; }
-  virtual gpio_num_t SD_CS_PIN()   { return user_selected_sdcard_enabled ? GPIO_NUM_5  : GPIO_NUM_NC; }
+  virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_12; }
+  virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_39; }
+  virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_14; }
+  virtual gpio_num_t SD_CS_PIN()   { return GPIO_NUM_5; }
 #endif  // SDCARD
 
   // SPI CAN add-on — shares the SD card's VSPI bus (SCK 14, MOSI/SDI 12, MISO/SDO 39).
@@ -51,10 +50,18 @@ class DFRobotEdge101Hal : public Esp32Hal {
   gpio_num_t MCP2517_CS()  override { return GPIO_NUM_33; }
   gpio_num_t MCP2517_INT() override { return GPIO_NUM_34; }
 
-  // Second CAN-FD device: only available when SD card is disabled (frees pin 5 for CS).
+  // Second CAN-FD device: only available when SD logging is disabled at boot (pin 5 is free).
   uint8_t MCP2517_BUS2() override { return VSPI; }
-  gpio_num_t MCP2517_CS2()  override { return user_selected_sdcard_enabled ? GPIO_NUM_NC : GPIO_NUM_5; }
-  gpio_num_t MCP2517_INT2() override { return user_selected_sdcard_enabled ? GPIO_NUM_NC : GPIO_NUM_37; }
+  gpio_num_t MCP2517_CS2() override {
+    return (datalayer.system.info.SD_logging_active || datalayer.system.info.CAN_SD_logging_active)
+               ? GPIO_NUM_NC
+               : GPIO_NUM_5;
+  }
+  gpio_num_t MCP2517_INT2() override {
+    return (datalayer.system.info.SD_logging_active || datalayer.system.info.CAN_SD_logging_active)
+               ? GPIO_NUM_NC
+               : GPIO_NUM_37;
+  }
 
   // User LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_15; }
