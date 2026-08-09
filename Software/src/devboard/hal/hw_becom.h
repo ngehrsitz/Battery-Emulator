@@ -16,6 +16,8 @@ class BEComHal : public Esp32Hal {
   virtual gpio_num_t RS485_DE_PIN() { return GPIO_NUM_16; }
 
   // 1st CANFD Interface: MCP2518
+  // SCK/SDI/SDO are S3 HSPI native pins (GPIO12/11/13)
+  uint8_t MCP2517_BUS() override { return HSPI; }
   virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_12; }
   virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_11; }
   virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_13; }
