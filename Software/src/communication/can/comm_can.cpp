@@ -122,9 +122,6 @@ bool init_CAN() {
   if (addonIt != can_receivers.end()) {
     auto cs_pin = esp32hal->MCP2515_CS();
     auto int_pin = esp32hal->MCP2515_INT();
-    auto sck_pin = esp32hal->MCP2515_SCK();
-    auto miso_pin = esp32hal->MCP2515_MISO();
-    auto mosi_pin = esp32hal->MCP2515_MOSI();
     auto rst_pin = esp32hal->MCP2515_RST();
 
     if (!esp32hal->alloc_pins("CAN", cs_pin, int_pin)) {

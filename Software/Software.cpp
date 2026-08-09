@@ -753,6 +753,9 @@ void setup() {
 
   init_stored_settings();
 
+  // Initialize SPI buses from board pin declarations before any task or driver uses them.
+  esp32hal->init_spi();
+
   if (wifi_enabled) {
     xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                             &connectivity_loop_task, esp32hal->WIFICORE());
@@ -801,8 +804,6 @@ void setup() {
   }
 
   setup_shunt();
-
-  esp32hal->init_spi();
 
   // Init CAN only after any CAN receivers have had a chance to register.
   init_CAN();
