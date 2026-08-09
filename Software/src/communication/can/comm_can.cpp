@@ -154,7 +154,9 @@ bool init_CAN() {
     }
 
     SPI2515 = new SPIClass(esp32hal->MCP2515_BUS());
-    SPI2515->begin(sck_pin, miso_pin, mosi_pin);
+    if (!mcp2515_bus_shared) {
+      SPI2515->begin(sck_pin, miso_pin, mosi_pin);
+    }
     can2515 = new MCP2515_Lite(*SPI2515, cs_pin, int_pin);
 
     quartz_frequency = esp32hal->MCP2515_FREQ();
@@ -197,7 +199,9 @@ bool init_CAN() {
     }
 
     SPI2517 = new SPIClass(esp32hal->MCP2517_BUS());
-    SPI2517->begin(sck_pin, sdo_pin, sdi_pin);
+    if (!mcp2517_bus_shared) {
+      SPI2517->begin(sck_pin, sdo_pin, sdi_pin);
+    }
   }
 
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end()) {
