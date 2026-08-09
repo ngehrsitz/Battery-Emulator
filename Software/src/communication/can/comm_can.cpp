@@ -122,12 +122,9 @@ bool init_CAN() {
   if (addonIt != can_receivers.end()) {
     auto cs_pin = esp32hal->MCP2515_CS();
     auto int_pin = esp32hal->MCP2515_INT();
-    auto sck_pin = esp32hal->MCP2515_SCK();
-    auto miso_pin = esp32hal->MCP2515_MISO();
-    auto mosi_pin = esp32hal->MCP2515_MOSI();
     auto rst_pin = esp32hal->MCP2515_RST();
 
-    if (!esp32hal->alloc_pins("CAN", cs_pin, int_pin, sck_pin, miso_pin, mosi_pin)) {
+    if (!esp32hal->alloc_pins("CAN", cs_pin, int_pin)) {
       return false;
     }
 
@@ -143,8 +140,7 @@ bool init_CAN() {
       delay(100);
     }
 
-    SPI2515 = new SPIClass(esp32hal->MCP2515_BUS());
-    SPI2515->begin(sck_pin, miso_pin, mosi_pin);
+    SPI2515 = &esp32hal->MCP2515_SPI();
     can2515 = new MCP2515_Lite(*SPI2515, cs_pin, int_pin);
 
     quartz_frequency = esp32hal->MCP2515_FREQ();
@@ -170,17 +166,7 @@ bool init_CAN() {
   auto fdAddonIt_2 = can_receivers.find(CANFD_ADDON_MCP2518_2);
 
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end() || fdAddonIt_2 != can_receivers.end()) {
-    // Initialise SPI bus first
-    auto sck_pin = esp32hal->MCP2517_SCK();
-    auto sdo_pin = esp32hal->MCP2517_SDO();
-    auto sdi_pin = esp32hal->MCP2517_SDI();
-
-    if (!esp32hal->alloc_pins("CANFD", sck_pin, sdo_pin, sdi_pin)) {
-      return false;
-    }
-
-    SPI2517 = new SPIClass(esp32hal->MCP2517_BUS());
-    SPI2517->begin(sck_pin, sdo_pin, sdi_pin);
+    SPI2517 = &esp32hal->MCP2517_SPI();
   }
 
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end()) {
@@ -238,21 +224,10 @@ bool init_CAN() {
       return false;
     }
 
-    if (esp32hal->MCP2517_BUS() == esp32hal->MCP2517_BUS2()) {
-      // Use the same bus for both CAN FD chips
+    if (&esp32hal->MCP2517_SPI() == &esp32hal->MCP2517_SPI2()) {
       SPI2517_2 = SPI2517;
     } else {
-      SPI2517_2 = new SPIClass(esp32hal->MCP2517_BUS2());
-
-      auto sck_pin = esp32hal->MCP2517_SCK2();
-      auto sdo_pin = esp32hal->MCP2517_SDO2();
-      auto sdi_pin = esp32hal->MCP2517_SDI2();
-
-      if (!esp32hal->alloc_pins("CANFD2", sck_pin, sdo_pin, sdi_pin)) {
-        return false;
-      }
-
-      SPI2517_2->begin(sck_pin, sdo_pin, sdi_pin);
+      SPI2517_2 = &esp32hal->MCP2517_SPI2();
     }
 
     canfd_2 = new ACAN2517FD(cs_pin, *SPI2517_2, int_pin);

@@ -10,18 +10,6 @@
 #include "../../../src/devboard/utils/logging.h"
 #include "../../../src/devboard/utils/types.h"
 
-// We need to use #ifdef trickery since the SPI buses are only defined on the
-// respective architectures.
-// The spare ESP32 SPI buses are called HSPI and VSPI, whereas on a ESP32S3
-// they are called FSPI and HSPI.
-#ifdef CONFIG_IDF_TARGET_ESP32S3
-#define DEFAULT_MCP2515_BUS HSPI
-#define DEFAULT_MCP2517_BUS FSPI
-#else
-#define DEFAULT_MCP2515_BUS VSPI
-#define DEFAULT_MCP2517_BUS HSPI
-#endif
-
 // Hardware Abstraction Layer base class.
 // Derive a class to define board-specific parameters such as GPIO pin numbers
 // This base class implements a mechanism for allocating GPIOs.
@@ -120,40 +108,24 @@ class Esp32Hal {
   virtual gpio_num_t CAN_SE_PIN() { return GPIO_NUM_NC; }
 
   // CAN_ADDON
-  // SPI bus number of MCP2515
-  virtual uint8_t MCP2515_BUS() { return DEFAULT_MCP2515_BUS; }
-  // SCK input of MCP2515
-  virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_NC; }
-  // SDI input of MCP2515
-  virtual gpio_num_t MCP2515_MOSI() { return GPIO_NUM_NC; }
-  // SDO output of MCP2515
-  virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_NC; }
-  // CS input of MCP2515
-  virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_NC; }
-  // INT output of MCP2515
+  virtual SPIClass& MCP2515_SPI() = 0;
+  virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_NC; }
-  // Reset pin for MCP2515
   virtual gpio_num_t MCP2515_RST() { return GPIO_NUM_NC; }
-  virtual uint32_t MCP2515_FREQ() { return 0; }  // 0 means unknown
+  virtual uint32_t MCP2515_FREQ()  { return 0; }  // 0 means unknown
 
   // CANFD_ADDON defines for MCP2517
-  virtual uint8_t MCP2517_BUS() { return DEFAULT_MCP2517_BUS; }
-  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_NC; }
+  virtual SPIClass& MCP2517_SPI() = 0;
+  virtual gpio_num_t MCP2517_CS()   { return GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_INT()  { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT0() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT1() { return GPIO_NUM_NC; }
-  virtual uint32_t MCP2517_FREQ() { return 0; }  // 0 means unknown
+  virtual uint32_t MCP2517_FREQ()   { return 0; }  // 0 means unknown
 
-  // 2nd CANFD Interface: MCP2517/8
-  virtual uint8_t MCP2517_BUS2() { return DEFAULT_MCP2517_BUS; }
-  virtual gpio_num_t MCP2517_SCK2() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_SDI2() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_SDO2() { return GPIO_NUM_NC; }
+  // 2nd CANFD Interface: MCP2517/8 — defaults to same bus as primary
+  virtual SPIClass& MCP2517_SPI2() { return MCP2517_SPI(); }
   virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_INT2() { return GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_INT2(){ return GPIO_NUM_NC; }
   virtual uint32_t MCP2517_FREQ2() { return 0; }  // 0 means unknown
 
   // Value for first MCP2517 CLKODIV register (default, divide by 10)
@@ -189,13 +161,41 @@ class Esp32Hal {
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
 #ifdef SDCARD
-  // SD card
-  virtual uint8_t SD_SPI_BUS() = 0;
-  virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_NC; }
-  virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_NC; }
-  virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_NC; }
+  // SD card — boards must override SD_SPI() to return the correct bus.
+  virtual SPIClass& SD_SPI() = 0;
   virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_NC; }
 #endif  // SDCARD
+
+  // Physical SPI bus pin declarations. Boards override the buses they actually wire.
+  // Default: GPIO_NUM_NC — bus will not be initialized.
+  struct SpiBus {
+    uint8_t bus;
+    gpio_num_t sck;
+    gpio_num_t mosi;
+    gpio_num_t miso;
+  };
+
+  // Boards override the bus methods they actually wire. Default = not connected (sck == GPIO_NUM_NC).
+  virtual SpiBus HSPI_bus() { return {HSPI, GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC}; }
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+  virtual SpiBus VSPI_bus() { return {VSPI, GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC}; }
+#else
+  virtual SpiBus FSPI_bus() { return {FSPI, GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC}; }
+#endif
+
+  // Initialize all declared buses. Called once from main after init_stored_settings().
+  void init_spi() {
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+    for (auto& b : {HSPI_bus(), VSPI_bus()}) {
+#else
+    for (auto& b : {HSPI_bus(), FSPI_bus()}) {
+#endif
+      if (b.sck != GPIO_NUM_NC) {
+        alloc_pins("SPI", b.sck, b.mosi, b.miso);
+        spi(b.bus).begin(b.sck, b.miso, b.mosi);
+      }
+    }
+  }
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
@@ -247,9 +247,25 @@ class Esp32Hal {
   String failed_allocator() { return allocator_name; }
   String conflicting_allocator() { return allocated_name; }
 
- private:
-  std::unordered_map<gpio_num_t, std::string> allocated_pins;
+ protected:
+  SPIClass _spi_hspi{HSPI};
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+  SPIClass _spi_vspi{VSPI};
+#else
+  SPIClass _spi_fspi{FSPI};
+#endif
+  SPIClass _spi_none{0};  // sentinel — returned by boards that don't use a peripheral
 
+ private:
+  SPIClass& spi(uint8_t bus) {
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+    return bus == HSPI ? _spi_hspi : _spi_vspi;
+#else
+    return bus == HSPI ? _spi_hspi : _spi_fspi;
+#endif
+  }
+
+  std::unordered_map<gpio_num_t, std::string> allocated_pins;
   // For event logging, store the name of the allocator/allocated
   // for failed gpio allocations.
   String allocator_name;

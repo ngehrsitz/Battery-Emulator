@@ -24,14 +24,37 @@ class DFRobotEdge101Hal : public Esp32Hal {
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_32; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_35; }
 
-  // microSD (SPI)
+  // HSPI bus: SCK=14 is native; MOSI=12 is HSPI native MISO role (matrix-routed for MOSI); MISO=39 via matrix.
+  SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_14, GPIO_NUM_12, GPIO_NUM_39}; }
+  SPIClass& SD_SPI()      override { return _spi_hspi; }
+  SPIClass& MCP2515_SPI() override { return _spi_hspi; }
+
+  // microSD on HSPI, CS=5
 #ifdef SDCARD
-  uint8_t SD_SPI_BUS() override { return VSPI; }
-  virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_12; }
-  virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_39; }
-  virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_14; }
-  virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_5; }
+  gpio_num_t SD_CS_PIN() override { return GPIO_NUM_5; }
 #endif  // SDCARD
+
+  // SPI CAN add-on on HSPI.
+  // GPIO 18/23 are the PCF8563 RTC I2C bus (SDA/SCL) — do NOT use for SPI.
+  // GPIO 34 and 37 are input-only on the classic ESP32 — used here for INT.
+  uint8_t MCP2515_BUS() override { return HSPI; }
+  gpio_num_t MCP2515_CS()  override { return GPIO_NUM_33; }
+  gpio_num_t MCP2515_INT() override { return GPIO_NUM_34; }
+
+  uint8_t MCP2517_BUS() override { return HSPI; }
+  gpio_num_t MCP2517_CS()  override { return GPIO_NUM_33; }
+  gpio_num_t MCP2517_INT() override { return GPIO_NUM_34; }
+
+  // Second CAN-FD device: only available when SD logging is disabled at boot (pin 5 is free).
+  uint8_t MCP2517_BUS2() override { return HSPI; }
+  gpio_num_t MCP2517_CS2() override {
+    return (datalayer.system.info.SD_logging_active || datalayer.system.info.CAN_SD_logging_active)
+               ? GPIO_NUM_NC : GPIO_NUM_5;
+  }
+  gpio_num_t MCP2517_INT2() override {
+    return (datalayer.system.info.SD_logging_active || datalayer.system.info.CAN_SD_logging_active)
+               ? GPIO_NUM_NC : GPIO_NUM_37;
+  }
 
   // User LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_15; }
@@ -40,7 +63,9 @@ class DFRobotEdge101Hal : public Esp32Hal {
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_38; }
 
   std::vector<comm_interface> available_interfaces() {
-    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative};
+    return {comm_interface::Modbus,          comm_interface::RS485,
+            comm_interface::CanNative,       comm_interface::CanAddonMcp2515,
+            comm_interface::CanFdAddonMcp2518, comm_interface::CanFdAddonMcp2518_2};
   }
 
   virtual const char* name_for_comm_interface(comm_interface comm) {
@@ -53,6 +78,8 @@ class DFRobotEdge101Hal : public Esp32Hal {
         return "CAN (MCP2515 add-on)";
       case comm_interface::CanFdAddonMcp2518:
         return "CAN FD (MCP2518 add-on)";
+      case comm_interface::CanFdAddonMcp2518_2:
+        return "CAN FD 2 (MCP2518 add-on)";
       case comm_interface::Modbus:
         return "Modbus";
       case comm_interface::RS485:

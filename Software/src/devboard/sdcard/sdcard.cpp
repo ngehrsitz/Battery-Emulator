@@ -201,17 +201,13 @@ void deinit_logging_buffers() {
 }
 
 bool init_sdcard() {
-  auto miso_pin = esp32hal->SD_MISO_PIN();
-  auto mosi_pin = esp32hal->SD_MOSI_PIN();
-  auto sclk_pin = esp32hal->SD_SCLK_PIN();
   auto cs_pin = esp32hal->SD_CS_PIN();
 
-  if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin, cs_pin)) {
+  if (!esp32hal->alloc_pins("SD Card", cs_pin)) {
     return false;
   }
 
-  static SPIClass sd_spi(esp32hal->SD_SPI_BUS());
-  sd_spi.begin(sclk_pin, miso_pin, mosi_pin, cs_pin);
+  SPIClass& sd_spi = esp32hal->SD_SPI();
 
   constexpr uint32_t SD_SPI_FREQ = 20 * 1000000;  // 20 MHz
   constexpr uint8_t SD_MAX_OPEN_FILES = 5;        // library default

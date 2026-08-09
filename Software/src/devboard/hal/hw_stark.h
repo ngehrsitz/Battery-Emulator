@@ -50,12 +50,15 @@ class StarkHal : public Esp32Hal {
       return false;
     }
   }
-  virtual gpio_num_t MCP2517_SCK() { return isStarkVersion1() ? GPIO_NUM_16 : GPIO_NUM_17; }
-  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_5; }
-  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_34; }
-  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
+
+  // HSPI bus: MCP2517 (SCK differs between board versions)
+  SpiBus HSPI_bus() override { return {HSPI, isStarkVersion1() ? GPIO_NUM_16 : GPIO_NUM_17, GPIO_NUM_5, GPIO_NUM_34}; }
+  SPIClass& MCP2515_SPI() override { return _spi_none; }
+  SPIClass& MCP2517_SPI() override { return _spi_hspi; }
+
+  virtual gpio_num_t MCP2517_CS()  { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
-  virtual uint32_t MCP2517_FREQ() { return 40000000; }
+  virtual uint32_t MCP2517_FREQ()  { return 40000000; }
 
   // MCP2518FD add-on via the GPIO pins
   // SPI Bus is shared with the 1st interface, only INT and CS pins are needed

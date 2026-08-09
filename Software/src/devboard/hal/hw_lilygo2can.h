@@ -46,32 +46,28 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t RS485_TX_PIN() { return GPIO_NUM_43; }
   virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_44; }
 
+  // HSPI bus: built-in CAN chip / FSPI bus: add-on CAN chip
+  SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_12, GPIO_NUM_11, GPIO_NUM_13}; }
+  SpiBus FSPI_bus() override { return {FSPI, GPIO_NUM_38, GPIO_NUM_42, GPIO_NUM_37}; }
+  SPIClass& MCP2517_SPI2() override { return _spi_fspi; }
+
   // Built In MCP2515 CAN_ADDON
-  virtual gpio_num_t MCP2515_SCK() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_12; }
-  virtual gpio_num_t MCP2515_MOSI() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_11; }
-  virtual gpio_num_t MCP2515_MISO() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_13; }
-  virtual gpio_num_t MCP2515_CS() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_10; }
+  virtual gpio_num_t MCP2515_CS()  { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_10; }
   virtual gpio_num_t MCP2515_INT() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_8; }
   virtual gpio_num_t MCP2515_RST() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_9; }
-  virtual uint32_t MCP2515_FREQ() { return 16000000; }
+  virtual uint32_t MCP2515_FREQ()  { return 16000000; }
 
   // CANFD_ADDON defines for MCP2517
-  virtual gpio_num_t MCP2517_SCK() { return is_fd() ? GPIO_NUM_12 : GPIO_NUM_38; }
-  virtual gpio_num_t MCP2517_SDI() { return is_fd() ? GPIO_NUM_11 : GPIO_NUM_42; }
-  virtual gpio_num_t MCP2517_SDO() { return is_fd() ? GPIO_NUM_13 : GPIO_NUM_37; }
-  virtual gpio_num_t MCP2517_CS() { return is_fd() ? GPIO_NUM_10 : GPIO_NUM_41; }
-  virtual gpio_num_t MCP2517_INT() { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_39; }
-  virtual gpio_num_t MCP2517_INT0() { return is_fd() ? GPIO_NUM_9 : GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_INT1() { return is_fd() ? GPIO_NUM_3 : GPIO_NUM_NC; }
-  virtual uint32_t MCP2517_FREQ() { return is_fd() ? 40000000 : 0; }
+  virtual gpio_num_t MCP2517_CS()   { return is_fd() ? GPIO_NUM_10 : GPIO_NUM_41; }
+  virtual gpio_num_t MCP2517_INT()  { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_39; }
+  virtual gpio_num_t MCP2517_INT0() { return is_fd() ? GPIO_NUM_9  : GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_INT1() { return is_fd() ? GPIO_NUM_3  : GPIO_NUM_NC; }
+  virtual uint32_t MCP2517_FREQ()   { return is_fd() ? 40000000 : 0; }
 
-  // Use the 2515 SPI bus for the add-on on the FD (as it isn't being used for a 2515)
-  virtual uint8_t MCP2517_BUS2() { return DEFAULT_MCP2515_BUS; }
-  virtual gpio_num_t MCP2517_SCK2() { return is_fd() ? GPIO_NUM_38 : GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_SDI2() { return is_fd() ? GPIO_NUM_42 : GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_SDO2() { return is_fd() ? GPIO_NUM_37 : GPIO_NUM_NC; }
+  // Use FSPI for the add-on on the FD variant
+  virtual uint8_t MCP2517_BUS2()   { return DEFAULT_MCP2515_BUS; }
   virtual gpio_num_t MCP2517_CS2() { return is_fd() ? GPIO_NUM_41 : GPIO_NUM_NC; }
-  virtual gpio_num_t MCP2517_INT2() { return is_fd() ? GPIO_NUM_39 : GPIO_NUM_NC; }
+  virtual gpio_num_t MCP2517_INT2(){ return is_fd() ? GPIO_NUM_39 : GPIO_NUM_NC; }
 
   // Contactor handling
   virtual gpio_num_t POSITIVE_CONTACTOR_PIN() { return GPIO_NUM_48; }

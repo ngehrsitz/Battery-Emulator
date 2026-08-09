@@ -19,23 +19,20 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_26; }
   virtual gpio_num_t CAN_SE_PIN() { return GPIO_NUM_23; }
 
+  // VSPI bus: CAN add-on (MCP2515/MCP2517)
+  // HSPI bus: SD card (SCK=14 is HSPI native)
+  SpiBus VSPI_bus() override { return {VSPI, GPIO_NUM_12, GPIO_NUM_5,  GPIO_NUM_34}; }
+  SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_14, GPIO_NUM_15, GPIO_NUM_2}; }
+  SPIClass& MCP2515_SPI() override { return _spi_vspi; }
+  SPIClass& MCP2517_SPI() override { return _spi_vspi; }
+  SPIClass& SD_SPI()      override { return _spi_hspi; }
+
   // CAN_ADDON
-  // SCK input of MCP2515
-  virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_12; }
-  // SDI input of MCP2515
-  virtual gpio_num_t MCP2515_MOSI() { return GPIO_NUM_5; }
-  // SDO output of MCP2515
-  virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_34; }
-  // CS input of MCP2515
-  virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_18; }
-  // INT output of MCP2515
+  virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_35; }
 
   // CANFD_ADDON defines for MCP2517
-  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_12; }
-  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_5; }
-  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_34; }
-  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
+  virtual gpio_num_t MCP2517_CS()  { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
 
   // CHAdeMO support pin dependencies
@@ -76,31 +73,9 @@ class LilyGoHal : public Esp32Hal {
   //        virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
 #ifdef SDCARD
-  // SD card
-  uint8_t SD_SPI_BUS() override { return VSPI; }
-  virtual gpio_num_t SD_MISO_PIN() {
-    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
-      return GPIO_NUM_2;
-    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
-    return GPIO_NUM_NC;
-  }
-  virtual gpio_num_t SD_MOSI_PIN() {
-    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
-      return GPIO_NUM_15;
-    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
-    return GPIO_NUM_NC;
-  }
-  virtual gpio_num_t SD_SCLK_PIN() {
-    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
-      return GPIO_NUM_14;
-    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
-    return GPIO_NUM_NC;
-  }
-  virtual gpio_num_t SD_CS_PIN() {
-    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
-      return GPIO_NUM_13;
-    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
-    return GPIO_NUM_NC;
+  // SD card on HSPI — pins declared via HSPI_bus(); only CS is device-specific.
+  gpio_num_t SD_CS_PIN() override {
+    return user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD ? GPIO_NUM_13 : GPIO_NUM_NC;
   }
 #endif  // SDCARD
 

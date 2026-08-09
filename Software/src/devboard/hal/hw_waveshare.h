@@ -72,11 +72,11 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
   }
 #endif  // SMALL_FLASH_DEVICE
 
+  // FSPI bus: MCP2517 on S3
+  SpiBus FSPI_bus() override { return {FSPI, GPIO_NUM_10, GPIO_NUM_11, GPIO_NUM_12}; }
+
   // CANFD add-on defines for MCP2517
-  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_10; }
-  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_11; }
-  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_12; }
-  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_13; }
+  virtual gpio_num_t MCP2517_CS()  { return GPIO_NUM_13; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_14; }
 
   std::vector<comm_interface> available_interfaces() {

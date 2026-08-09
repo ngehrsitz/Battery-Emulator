@@ -13,23 +13,18 @@ class ThreeLBHal : public Esp32Hal {
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_27; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_26; }
 
+  // VSPI bus: MCP2515 / HSPI bus: MCP2517
+  SpiBus VSPI_bus() override { return {VSPI, GPIO_NUM_12, GPIO_NUM_5,  GPIO_NUM_34}; }
+  SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_17, GPIO_NUM_23, GPIO_NUM_39}; }
+  SPIClass& MCP2515_SPI() override { return _spi_vspi; }
+  SPIClass& MCP2517_SPI() override { return _spi_hspi; }
+
   // CAN_ADDON
-  // SCK input of MCP2515
-  virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_12; }
-  // SDI input of MCP2515
-  virtual gpio_num_t MCP2515_MOSI() { return GPIO_NUM_5; }
-  // SDO output of MCP2515
-  virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_34; }
-  // CS input of MCP2515
-  virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_18; }
-  // INT output of MCP2515
+  virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_35; }
 
   // CANFD_ADDON defines for MCP2517
-  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_17; }
-  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_23; }
-  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_39; }
-  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_21; }
+  virtual gpio_num_t MCP2517_CS()  { return GPIO_NUM_21; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_34; }
 
   // CHAdeMO support pin dependencies
