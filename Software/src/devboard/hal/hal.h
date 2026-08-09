@@ -108,33 +108,21 @@ class Esp32Hal {
   virtual gpio_num_t CAN_SE_PIN() { return GPIO_NUM_NC; }
 
   // CAN_ADDON
-  virtual SPIClass& MCP2515_SPI() {
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-    return _spi_vspi;
-#else
-    return _spi_hspi;
-#endif
-  }
+  virtual SPIClass& MCP2515_SPI() = 0;
   virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2515_RST() { return GPIO_NUM_NC; }
   virtual uint32_t MCP2515_FREQ()  { return 0; }  // 0 means unknown
 
   // CANFD_ADDON defines for MCP2517
-  virtual SPIClass& MCP2517_SPI() {
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-    return _spi_hspi;
-#else
-    return _spi_fspi;
-#endif
-  }
+  virtual SPIClass& MCP2517_SPI() = 0;
   virtual gpio_num_t MCP2517_CS()   { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT()  { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT0() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT1() { return GPIO_NUM_NC; }
   virtual uint32_t MCP2517_FREQ()   { return 0; }  // 0 means unknown
 
-  // 2nd CANFD Interface: MCP2517/8
+  // 2nd CANFD Interface: MCP2517/8 — defaults to same bus as primary
   virtual SPIClass& MCP2517_SPI2() { return MCP2517_SPI(); }
   virtual gpio_num_t MCP2517_CS2() { return GPIO_NUM_NC; }
   virtual gpio_num_t MCP2517_INT2(){ return GPIO_NUM_NC; }
@@ -173,8 +161,8 @@ class Esp32Hal {
   virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
 #ifdef SDCARD
-  // SD card — boards override SD_SPI() if the SD card is not on the default HSPI bus.
-  virtual SPIClass& SD_SPI() { return _spi_hspi; }
+  // SD card — boards must override SD_SPI() to return the correct bus.
+  virtual SPIClass& SD_SPI() = 0;
   virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_NC; }
 #endif  // SDCARD
 
@@ -266,6 +254,7 @@ class Esp32Hal {
 #else
   SPIClass _spi_fspi{FSPI};
 #endif
+  SPIClass _spi_none{0};  // sentinel — returned by boards that don't use a peripheral
 
  private:
   SPIClass& spi(uint8_t bus) {

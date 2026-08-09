@@ -25,6 +25,7 @@ class LilyGoHal : public Esp32Hal {
   SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_14, GPIO_NUM_15, GPIO_NUM_2}; }
   SPIClass& MCP2515_SPI() override { return _spi_vspi; }
   SPIClass& MCP2517_SPI() override { return _spi_vspi; }
+  SPIClass& SD_SPI()      override { return _spi_hspi; }
 
   // CAN_ADDON
   virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_18; }
@@ -72,31 +73,9 @@ class LilyGoHal : public Esp32Hal {
   //        virtual gpio_num_t INVERTER_CONTACTOR_ENABLE_LED_PIN() { return GPIO_NUM_NC; }
 
 #ifdef SDCARD
-  // SD card — SCLK=14 is HSPI native SCK on classic ESP32
-  uint8_t SD_SPI_BUS() override { return HSPI; }
-  virtual gpio_num_t SD_MISO_PIN() {
-    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
-      return GPIO_NUM_2;
-    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
-    return GPIO_NUM_NC;
-  }
-  virtual gpio_num_t SD_MOSI_PIN() {
-    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
-      return GPIO_NUM_15;
-    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
-    return GPIO_NUM_NC;
-  }
-  virtual gpio_num_t SD_SCLK_PIN() {
-    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
-      return GPIO_NUM_14;
-    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
-    return GPIO_NUM_NC;
-  }
-  virtual gpio_num_t SD_CS_PIN() {
-    if (user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD) {
-      return GPIO_NUM_13;
-    }  //Else user_selected_gpioopt4 == GPIOOPT4::I2C_DISPLAY_SSD1306
-    return GPIO_NUM_NC;
+  // SD card on HSPI — pins declared via HSPI_bus(); only CS is device-specific.
+  gpio_num_t SD_CS_PIN() override {
+    return user_selected_gpioopt4 == GPIOOPT4::DEFAULT_SD_CARD ? GPIO_NUM_13 : GPIO_NUM_NC;
   }
 #endif  // SDCARD
 

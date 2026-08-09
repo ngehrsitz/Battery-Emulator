@@ -53,6 +53,8 @@ class StarkHal : public Esp32Hal {
 
   // HSPI bus: MCP2517 (SCK differs between board versions)
   SpiBus HSPI_bus() override { return {HSPI, isStarkVersion1() ? GPIO_NUM_16 : GPIO_NUM_17, GPIO_NUM_5, GPIO_NUM_34}; }
+  SPIClass& MCP2515_SPI() override { return _spi_none; }
+  SPIClass& MCP2517_SPI() override { return _spi_hspi; }
 
   virtual gpio_num_t MCP2517_CS()  { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
