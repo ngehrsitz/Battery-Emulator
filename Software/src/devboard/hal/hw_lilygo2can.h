@@ -47,14 +47,13 @@ class LilyGo2CANHal : public Esp32Hal {
   virtual gpio_num_t RS485_RX_PIN() { return GPIO_NUM_44; }
 
   // HSPI bus: built-in CAN chip (MCP2515 or MCP2518FD depending on variant)
-  gpio_num_t HSPI_SCK()  override { return GPIO_NUM_12; }
-  gpio_num_t HSPI_MOSI() override { return GPIO_NUM_11; }
-  gpio_num_t HSPI_MISO() override { return GPIO_NUM_13; }
-
   // FSPI bus: add-on CAN chip
-  gpio_num_t FSPI_SCK()  override { return GPIO_NUM_38; }
-  gpio_num_t FSPI_MOSI() override { return GPIO_NUM_42; }
-  gpio_num_t FSPI_MISO() override { return GPIO_NUM_37; }
+  std::vector<SpiBus> spi_buses() override {
+    return {
+        {HSPI, GPIO_NUM_12, GPIO_NUM_11, GPIO_NUM_13},
+        {FSPI, GPIO_NUM_38, GPIO_NUM_42, GPIO_NUM_37},
+    };
+  }
 
   // Built In MCP2515 CAN_ADDON
   virtual gpio_num_t MCP2515_CS()  { return is_fd() ? GPIO_NUM_NC : GPIO_NUM_10; }

@@ -184,53 +184,26 @@ class Esp32Hal {
   // Physical SPI bus pin declarations. Boards override the buses they actually wire.
   // Default: GPIO_NUM_NC — bus will not be initialized.
   // Defaults for buses that are wired use the native ESP32 pins.
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-  virtual gpio_num_t HSPI_SCK()  { return GPIO_NUM_NC; }
-  virtual gpio_num_t HSPI_MISO() { return GPIO_NUM_NC; }
-  virtual gpio_num_t HSPI_MOSI() { return GPIO_NUM_NC; }
-  virtual gpio_num_t VSPI_SCK()  { return GPIO_NUM_NC; }
-  virtual gpio_num_t VSPI_MISO() { return GPIO_NUM_NC; }
-  virtual gpio_num_t VSPI_MOSI() { return GPIO_NUM_NC; }
-#else
-  virtual gpio_num_t FSPI_SCK()  { return GPIO_NUM_NC; }
-  virtual gpio_num_t FSPI_MISO() { return GPIO_NUM_NC; }
-  virtual gpio_num_t FSPI_MOSI() { return GPIO_NUM_NC; }
-  virtual gpio_num_t HSPI_SCK()  { return GPIO_NUM_NC; }
-  virtual gpio_num_t HSPI_MISO() { return GPIO_NUM_NC; }
-  virtual gpio_num_t HSPI_MOSI() { return GPIO_NUM_NC; }
-#endif
+  struct SpiBus {
+    uint8_t bus;
+    gpio_num_t sck;
+    gpio_num_t mosi;
+    gpio_num_t miso;
+  };
 
-  // Initialize all buses whose SCK pin is defined. Called once from main at boot.
+  // Boards override this to declare which SPI buses they wire and on which pins.
+  virtual std::vector<SpiBus> spi_buses() { return {}; }
+
+  // Initialize all declared buses. Called once from main after init_stored_settings().
   void init_spi() {
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-    if (HSPI_SCK() != GPIO_NUM_NC) {
-      alloc_pins("HSPI", HSPI_SCK(), HSPI_MISO(), HSPI_MOSI());
-      _spi_hspi.begin(HSPI_SCK(), HSPI_MISO(), HSPI_MOSI());
+    for (auto& b : spi_buses()) {
+      alloc_pins("SPI", b.sck, b.mosi, b.miso);
+      _spi[b.bus].begin(b.sck, b.miso, b.mosi);
     }
-    if (VSPI_SCK() != GPIO_NUM_NC) {
-      alloc_pins("VSPI", VSPI_SCK(), VSPI_MISO(), VSPI_MOSI());
-      _spi_vspi.begin(VSPI_SCK(), VSPI_MISO(), VSPI_MOSI());
-    }
-#else
-    if (FSPI_SCK() != GPIO_NUM_NC) {
-      alloc_pins("FSPI", FSPI_SCK(), FSPI_MISO(), FSPI_MOSI());
-      _spi_fspi.begin(FSPI_SCK(), FSPI_MISO(), FSPI_MOSI());
-    }
-    if (HSPI_SCK() != GPIO_NUM_NC) {
-      alloc_pins("HSPI", HSPI_SCK(), HSPI_MISO(), HSPI_MOSI());
-      _spi_hspi.begin(HSPI_SCK(), HSPI_MISO(), HSPI_MOSI());
-    }
-#endif
   }
 
   // Return the initialized SPIClass for the given bus number.
-  SPIClass& spi(uint8_t bus) {
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-    return bus == HSPI ? _spi_hspi : _spi_vspi;
-#else
-    return bus == HSPI ? _spi_hspi : _spi_fspi;
-#endif
-  }
+  SPIClass& spi(uint8_t bus) { return _spi[bus]; }
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
@@ -284,13 +257,7 @@ class Esp32Hal {
 
  private:
   std::unordered_map<gpio_num_t, std::string> allocated_pins;
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-  SPIClass _spi_hspi{HSPI};
-  SPIClass _spi_vspi{VSPI};
-#else
-  SPIClass _spi_fspi{FSPI};
-  SPIClass _spi_hspi{HSPI};
-#endif
+  SPIClass _spi[4] = {SPIClass(0), SPIClass(1), SPIClass(2), SPIClass(3)};
 
   // For event logging, store the name of the allocator/allocated
   // for failed gpio allocations.

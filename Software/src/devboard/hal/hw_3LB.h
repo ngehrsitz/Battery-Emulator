@@ -14,14 +14,13 @@ class ThreeLBHal : public Esp32Hal {
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_26; }
 
   // VSPI bus: MCP2515
-  gpio_num_t VSPI_SCK()  override { return GPIO_NUM_12; }
-  gpio_num_t VSPI_MOSI() override { return GPIO_NUM_5; }
-  gpio_num_t VSPI_MISO() override { return GPIO_NUM_34; }
-
   // HSPI bus: MCP2517
-  gpio_num_t HSPI_SCK()  override { return GPIO_NUM_17; }
-  gpio_num_t HSPI_MOSI() override { return GPIO_NUM_23; }
-  gpio_num_t HSPI_MISO() override { return GPIO_NUM_39; }
+  std::vector<SpiBus> spi_buses() override {
+    return {
+        {VSPI, GPIO_NUM_12, GPIO_NUM_5, GPIO_NUM_34},
+        {HSPI, GPIO_NUM_17, GPIO_NUM_23, GPIO_NUM_39},
+    };
+  }
 
   // CAN_ADDON
   virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_18; }
