@@ -195,14 +195,6 @@ class Esp32Hal {
   virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_NC; }
-  // Returns true when the user has SD logging enabled and the CAN driver should
-  // not re-allocate the shared bus pins (SD already owns and initialized them).
-  bool sd_shares_spi_bus(uint8_t bus) {
-    return SD_SPI_BUS() == bus &&
-           (datalayer.system.info.SD_logging_active || datalayer.system.info.CAN_SD_logging_active);
-  }
-#else
-  bool sd_shares_spi_bus(uint8_t /*bus*/) { return false; }
 #endif  // SDCARD
 
   // LED

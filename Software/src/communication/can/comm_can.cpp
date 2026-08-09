@@ -130,8 +130,14 @@ bool init_CAN() {
     if (!esp32hal->alloc_pins("CAN", cs_pin, int_pin)) {
       return false;
     }
-    if (!esp32hal->sd_shares_spi_bus(esp32hal->MCP2515_BUS()) &&
-        !esp32hal->alloc_pins("CAN", sck_pin, miso_pin, mosi_pin)) {
+#ifdef SDCARD
+    bool mcp2515_bus_shared = esp32hal->MCP2515_BUS() == esp32hal->SD_SPI_BUS() &&
+                              (datalayer.system.info.SD_logging_active ||
+                               datalayer.system.info.CAN_SD_logging_active);
+#else
+    bool mcp2515_bus_shared = false;
+#endif
+    if (!mcp2515_bus_shared && !esp32hal->alloc_pins("CAN", sck_pin, miso_pin, mosi_pin)) {
       return false;
     }
 
@@ -179,8 +185,14 @@ bool init_CAN() {
     auto sdo_pin = esp32hal->MCP2517_SDO();
     auto sdi_pin = esp32hal->MCP2517_SDI();
 
-    if (!esp32hal->sd_shares_spi_bus(esp32hal->MCP2517_BUS()) &&
-        !esp32hal->alloc_pins("CANFD", sck_pin, sdo_pin, sdi_pin)) {
+#ifdef SDCARD
+    bool mcp2517_bus_shared = esp32hal->MCP2517_BUS() == esp32hal->SD_SPI_BUS() &&
+                              (datalayer.system.info.SD_logging_active ||
+                               datalayer.system.info.CAN_SD_logging_active);
+#else
+    bool mcp2517_bus_shared = false;
+#endif
+    if (!mcp2517_bus_shared && !esp32hal->alloc_pins("CANFD", sck_pin, sdo_pin, sdi_pin)) {
       return false;
     }
 
