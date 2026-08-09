@@ -197,6 +197,23 @@ class Esp32Hal {
   virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_NC; }
 #endif  // SDCARD
 
+  // Returns a shared, initialized SPIClass for the given bus.
+  // First call allocates the bus pins, creates the instance, and calls begin().
+  // Subsequent calls return the cached pointer without re-initializing.
+  // Must only be called from the main task during initialization (not thread-safe by design).
+  SPIClass* get_spi_bus(uint8_t bus, int8_t sck, int8_t miso, int8_t mosi) {
+    auto it = _spi_buses.find(bus);
+    if (it != _spi_buses.end()) {
+      return it->second;
+    }
+    alloc_pins_ignore_unused("SPI", static_cast<gpio_num_t>(sck),
+                             static_cast<gpio_num_t>(miso), static_cast<gpio_num_t>(mosi));
+    auto* spi = new SPIClass(bus);
+    spi->begin(sck, miso, mosi);
+    _spi_buses[bus] = spi;
+    return spi;
+  }
+
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
@@ -249,6 +266,7 @@ class Esp32Hal {
 
  private:
   std::unordered_map<gpio_num_t, std::string> allocated_pins;
+  std::unordered_map<uint8_t, SPIClass*> _spi_buses;
 
   // For event logging, store the name of the allocator/allocated
   // for failed gpio allocations.

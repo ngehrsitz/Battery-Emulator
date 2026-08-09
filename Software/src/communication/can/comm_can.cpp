@@ -130,16 +130,6 @@ bool init_CAN() {
     if (!esp32hal->alloc_pins("CAN", cs_pin, int_pin)) {
       return false;
     }
-#ifdef SDCARD
-    bool mcp2515_bus_shared = esp32hal->MCP2515_BUS() == esp32hal->SD_SPI_BUS() &&
-                              (datalayer.system.info.SD_logging_active ||
-                               datalayer.system.info.CAN_SD_logging_active);
-#else
-    bool mcp2515_bus_shared = false;
-#endif
-    if (!mcp2515_bus_shared && !esp32hal->alloc_pins("CAN", sck_pin, miso_pin, mosi_pin)) {
-      return false;
-    }
 
     logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
 
@@ -153,10 +143,7 @@ bool init_CAN() {
       delay(100);
     }
 
-    SPI2515 = new SPIClass(esp32hal->MCP2515_BUS());
-    if (!mcp2515_bus_shared) {
-      SPI2515->begin(sck_pin, miso_pin, mosi_pin);
-    }
+    SPI2515 = esp32hal->get_spi_bus(esp32hal->MCP2515_BUS(), sck_pin, miso_pin, mosi_pin);
     can2515 = new MCP2515_Lite(*SPI2515, cs_pin, int_pin);
 
     quartz_frequency = esp32hal->MCP2515_FREQ();
@@ -182,26 +169,11 @@ bool init_CAN() {
   auto fdAddonIt_2 = can_receivers.find(CANFD_ADDON_MCP2518_2);
 
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end() || fdAddonIt_2 != can_receivers.end()) {
-    // Initialise SPI bus first
     auto sck_pin = esp32hal->MCP2517_SCK();
     auto sdo_pin = esp32hal->MCP2517_SDO();
     auto sdi_pin = esp32hal->MCP2517_SDI();
 
-#ifdef SDCARD
-    bool mcp2517_bus_shared = esp32hal->MCP2517_BUS() == esp32hal->SD_SPI_BUS() &&
-                              (datalayer.system.info.SD_logging_active ||
-                               datalayer.system.info.CAN_SD_logging_active);
-#else
-    bool mcp2517_bus_shared = false;
-#endif
-    if (!mcp2517_bus_shared && !esp32hal->alloc_pins("CANFD", sck_pin, sdo_pin, sdi_pin)) {
-      return false;
-    }
-
-    SPI2517 = new SPIClass(esp32hal->MCP2517_BUS());
-    if (!mcp2517_bus_shared) {
-      SPI2517->begin(sck_pin, sdo_pin, sdi_pin);
-    }
+    SPI2517 = esp32hal->get_spi_bus(esp32hal->MCP2517_BUS(), sck_pin, sdo_pin, sdi_pin);
   }
 
   if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end()) {
