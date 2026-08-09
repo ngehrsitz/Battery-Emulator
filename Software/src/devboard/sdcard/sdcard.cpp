@@ -201,6 +201,10 @@ void deinit_logging_buffers() {
 }
 
 bool init_sdcard() {
+  if (!user_selected_sdcard_enabled) {
+    return false;
+  }
+
   auto miso_pin = esp32hal->SD_MISO_PIN();
   auto mosi_pin = esp32hal->SD_MOSI_PIN();
   auto sclk_pin = esp32hal->SD_SCLK_PIN();

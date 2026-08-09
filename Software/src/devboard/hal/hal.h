@@ -195,6 +195,11 @@ class Esp32Hal {
   virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_NC; }
+  // Returns true when the SD card is enabled and uses the given SPI bus,
+  // so a CAN driver sharing that bus should not re-allocate the bus pins.
+  bool sd_shares_spi_bus(uint8_t bus) { return user_selected_sdcard_enabled && SD_SPI_BUS() == bus; }
+#else
+  bool sd_shares_spi_bus(uint8_t /*bus*/) { return false; }
 #endif  // SDCARD
 
   // LED

@@ -706,6 +706,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   if (var == "SDLOGENABLED") {
     return settings.getBool("SDLOGENABLED") ? "checked" : "";
   }
+
+  if (var == "SDCARD_EN") {
+    return settings.getBool("SDCARD_EN", true) ? "checked" : "";
+  }
 #endif  // SDCARD
   if (var == "SYSLOGEN") {
     return settings.getBool("SYSLOGEN") ? "checked" : "";
@@ -1160,6 +1164,10 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #ifdef SDCARD
 #define SD_SETTING_HTML \
   R"rawliteral(
+        <label>SD card enabled: </label>
+        <input type='checkbox' name='SDCARD_EN' value='on' %SDCARD_EN%
+            title="Enable the SD card slot. Disable to free the SD CS pin for a second SPI CAN add-on (requires reboot)." />
+
         <label>General logging to SD card: </label>
         <input type='checkbox' name='SDLOGENABLED' value='on' %SDLOGENABLED%
             title="Store logs on an SD card. Only works on hardware with SD-card slot." />
