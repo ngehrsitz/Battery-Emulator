@@ -207,13 +207,19 @@ class Esp32Hal {
 #endif
       if (b.sck != GPIO_NUM_NC) {
         alloc_pins("SPI", b.sck, b.mosi, b.miso);
-        _spi[b.bus].begin(b.sck, b.miso, b.mosi);
+        spi(b.bus).begin(b.sck, b.miso, b.mosi);
       }
     }
   }
 
   // Return the initialized SPIClass for the given bus number.
-  SPIClass& spi(uint8_t bus) { return _spi[bus]; }
+  SPIClass& spi(uint8_t bus) {
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+    return bus == HSPI ? _spi_hspi : _spi_vspi;
+#else
+    return bus == HSPI ? _spi_hspi : _spi_fspi;
+#endif
+  }
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
@@ -267,7 +273,12 @@ class Esp32Hal {
 
  private:
   std::unordered_map<gpio_num_t, std::string> allocated_pins;
-  SPIClass _spi[4] = {SPIClass(0), SPIClass(1), SPIClass(2), SPIClass(3)};
+  SPIClass _spi_hspi{HSPI};
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+  SPIClass _spi_vspi{VSPI};
+#else
+  SPIClass _spi_fspi{FSPI};
+#endif
 
   // For event logging, store the name of the allocator/allocated
   // for failed gpio allocations.
