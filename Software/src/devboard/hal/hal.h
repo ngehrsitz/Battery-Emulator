@@ -183,7 +183,6 @@ class Esp32Hal {
 
   // Physical SPI bus pin declarations. Boards override the buses they actually wire.
   // Default: GPIO_NUM_NC — bus will not be initialized.
-  // Defaults for buses that are wired use the native ESP32 pins.
   struct SpiBus {
     uint8_t bus;
     gpio_num_t sck;
@@ -191,14 +190,18 @@ class Esp32Hal {
     gpio_num_t miso;
   };
 
-  // Boards override this to declare which SPI buses they wire and on which pins.
-  virtual std::vector<SpiBus> spi_buses() { return {}; }
+  // Boards override the bus methods they actually wire. Default = not connected (sck == GPIO_NUM_NC).
+  virtual SpiBus HSPI_bus() { return {HSPI, GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC}; }
+  virtual SpiBus VSPI_bus() { return {VSPI, GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC}; }
+  virtual SpiBus FSPI_bus() { return {FSPI, GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC}; }
 
   // Initialize all declared buses. Called once from main after init_stored_settings().
   void init_spi() {
-    for (auto& b : spi_buses()) {
-      alloc_pins("SPI", b.sck, b.mosi, b.miso);
-      _spi[b.bus].begin(b.sck, b.miso, b.mosi);
+    for (auto& b : {HSPI_bus(), VSPI_bus(), FSPI_bus()}) {
+      if (b.sck != GPIO_NUM_NC) {
+        alloc_pins("SPI", b.sck, b.mosi, b.miso);
+        _spi[b.bus].begin(b.sck, b.miso, b.mosi);
+      }
     }
   }
 

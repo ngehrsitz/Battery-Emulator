@@ -21,14 +21,9 @@ class DevKitHal : public Esp32Hal {
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_27; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_26; }
 
-  // VSPI bus: MCP2515
-  // HSPI bus: MCP2517
-  std::vector<SpiBus> spi_buses() override {
-    return {
-        {VSPI, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_19},
-        {HSPI, GPIO_NUM_33, GPIO_NUM_32, GPIO_NUM_35},
-    };
-  }
+  // VSPI bus: MCP2515 / HSPI bus: MCP2517
+  SpiBus VSPI_bus() override { return {VSPI, GPIO_NUM_22, GPIO_NUM_21, GPIO_NUM_19}; }
+  SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_33, GPIO_NUM_32, GPIO_NUM_35}; }
 
   // CAN_ADDON
   virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_18; }

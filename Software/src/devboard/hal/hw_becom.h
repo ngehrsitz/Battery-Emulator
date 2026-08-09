@@ -17,9 +17,7 @@ class BEComHal : public Esp32Hal {
 
   // 1st CANFD Interface: MCP2518 on S3 HSPI (SCK/SDI/SDO are HSPI native pins)
   uint8_t MCP2517_BUS() override { return HSPI; }
-  std::vector<SpiBus> spi_buses() override {
-    return {{HSPI, GPIO_NUM_12, GPIO_NUM_11, GPIO_NUM_13}};
-  }
+  SpiBus HSPI_bus() override { return {HSPI, GPIO_NUM_12, GPIO_NUM_11, GPIO_NUM_13}; }
   virtual gpio_num_t MCP2517_CS()  { return GPIO_NUM_14; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_10; }
   virtual uint32_t MCP2517_FREQ() { return 40000000; }
