@@ -24,30 +24,25 @@ class DFRobotEdge101Hal : public Esp32Hal {
   virtual gpio_num_t CAN_TX_PIN() { return GPIO_NUM_32; }
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_35; }
 
-  // microSD (SPI on HSPI: SCK 14, MOSI 12, MISO 39, CS 5)
-  // SCK=14 is HSPI native; MOSI=12 is HSPI native MISO role (still routed via GPIO matrix for MOSI).
+  // HSPI bus: SCK=14 is native; MOSI=12 is HSPI native MISO role (matrix-routed for MOSI); MISO=39 via matrix.
+  gpio_num_t HSPI_SCK()  override { return GPIO_NUM_14; }
+  gpio_num_t HSPI_MOSI() override { return GPIO_NUM_12; }
+  gpio_num_t HSPI_MISO() override { return GPIO_NUM_39; }
+
+  // microSD on HSPI, CS=5
 #ifdef SDCARD
   uint8_t SD_SPI_BUS() override { return HSPI; }
-  virtual gpio_num_t SD_MOSI_PIN() { return GPIO_NUM_12; }
-  virtual gpio_num_t SD_MISO_PIN() { return GPIO_NUM_39; }
-  virtual gpio_num_t SD_SCLK_PIN() { return GPIO_NUM_14; }
-  virtual gpio_num_t SD_CS_PIN()   { return GPIO_NUM_5; }
+  gpio_num_t SD_CS_PIN() override { return GPIO_NUM_5; }
 #endif  // SDCARD
 
-  // SPI CAN add-on — shares the SD card's HSPI bus (SCK 14, MOSI/SDI 12, MISO/SDO 39).
+  // SPI CAN add-on on HSPI.
   // GPIO 18/23 are the PCF8563 RTC I2C bus (SDA/SCL) — do NOT use for SPI.
-  // GPIO 34 and 37 are input-only on the classic ESP32 — used here for MISO and INT.
+  // GPIO 34 and 37 are input-only on the classic ESP32 — used here for INT.
   uint8_t MCP2515_BUS() override { return HSPI; }
-  gpio_num_t MCP2515_SCK()  override { return GPIO_NUM_14; }
-  gpio_num_t MCP2515_MOSI() override { return GPIO_NUM_12; }
-  gpio_num_t MCP2515_MISO() override { return GPIO_NUM_39; }
-  gpio_num_t MCP2515_CS()   override { return GPIO_NUM_33; }
-  gpio_num_t MCP2515_INT()  override { return GPIO_NUM_34; }
+  gpio_num_t MCP2515_CS()  override { return GPIO_NUM_33; }
+  gpio_num_t MCP2515_INT() override { return GPIO_NUM_34; }
 
   uint8_t MCP2517_BUS() override { return HSPI; }
-  gpio_num_t MCP2517_SCK() override { return GPIO_NUM_14; }
-  gpio_num_t MCP2517_SDI() override { return GPIO_NUM_12; }
-  gpio_num_t MCP2517_SDO() override { return GPIO_NUM_39; }
   gpio_num_t MCP2517_CS()  override { return GPIO_NUM_33; }
   gpio_num_t MCP2517_INT() override { return GPIO_NUM_34; }
 
@@ -55,13 +50,11 @@ class DFRobotEdge101Hal : public Esp32Hal {
   uint8_t MCP2517_BUS2() override { return HSPI; }
   gpio_num_t MCP2517_CS2() override {
     return (datalayer.system.info.SD_logging_active || datalayer.system.info.CAN_SD_logging_active)
-               ? GPIO_NUM_NC
-               : GPIO_NUM_5;
+               ? GPIO_NUM_NC : GPIO_NUM_5;
   }
   gpio_num_t MCP2517_INT2() override {
     return (datalayer.system.info.SD_logging_active || datalayer.system.info.CAN_SD_logging_active)
-               ? GPIO_NUM_NC
-               : GPIO_NUM_37;
+               ? GPIO_NUM_NC : GPIO_NUM_37;
   }
 
   // User LED

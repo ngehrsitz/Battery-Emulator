@@ -201,22 +201,19 @@ void deinit_logging_buffers() {
 }
 
 bool init_sdcard() {
-  auto miso_pin = esp32hal->SD_MISO_PIN();
-  auto mosi_pin = esp32hal->SD_MOSI_PIN();
-  auto sclk_pin = esp32hal->SD_SCLK_PIN();
   auto cs_pin = esp32hal->SD_CS_PIN();
 
   if (!esp32hal->alloc_pins("SD Card", cs_pin)) {
     return false;
   }
 
-  SPIClass* sd_spi = esp32hal->get_spi_bus(esp32hal->SD_SPI_BUS(), sclk_pin, miso_pin, mosi_pin);
+  SPIClass& sd_spi = esp32hal->spi(esp32hal->SD_SPI_BUS());
 
   constexpr uint32_t SD_SPI_FREQ = 20 * 1000000;  // 20 MHz
   constexpr uint8_t SD_MAX_OPEN_FILES = 5;        // library default
   constexpr bool FORMAT_IF_EMPTY = true;
 
-  if (!SD.begin(cs_pin, *sd_spi, SD_SPI_FREQ, "/root", SD_MAX_OPEN_FILES, FORMAT_IF_EMPTY)) {
+  if (!SD.begin(cs_pin, sd_spi, SD_SPI_FREQ, "/root", SD_MAX_OPEN_FILES, FORMAT_IF_EMPTY)) {
     set_event_latched(EVENT_SD_INIT_FAILED, 0);
     logging.println("SD Card initialization failed!");
     return false;

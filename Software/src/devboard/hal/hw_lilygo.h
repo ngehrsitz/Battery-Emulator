@@ -19,23 +19,22 @@ class LilyGoHal : public Esp32Hal {
   virtual gpio_num_t CAN_RX_PIN() { return GPIO_NUM_26; }
   virtual gpio_num_t CAN_SE_PIN() { return GPIO_NUM_23; }
 
+  // VSPI bus: CAN add-on (MCP2515/MCP2517)
+  gpio_num_t VSPI_SCK()  override { return GPIO_NUM_12; }
+  gpio_num_t VSPI_MOSI() override { return GPIO_NUM_5; }
+  gpio_num_t VSPI_MISO() override { return GPIO_NUM_34; }
+
+  // HSPI bus: SD card (SCK=14 is HSPI native)
+  gpio_num_t HSPI_SCK()  override { return GPIO_NUM_14; }
+  gpio_num_t HSPI_MOSI() override { return GPIO_NUM_15; }
+  gpio_num_t HSPI_MISO() override { return GPIO_NUM_2; }
+
   // CAN_ADDON
-  // SCK input of MCP2515
-  virtual gpio_num_t MCP2515_SCK() { return GPIO_NUM_12; }
-  // SDI input of MCP2515
-  virtual gpio_num_t MCP2515_MOSI() { return GPIO_NUM_5; }
-  // SDO output of MCP2515
-  virtual gpio_num_t MCP2515_MISO() { return GPIO_NUM_34; }
-  // CS input of MCP2515
-  virtual gpio_num_t MCP2515_CS() { return GPIO_NUM_18; }
-  // INT output of MCP2515
+  virtual gpio_num_t MCP2515_CS()  { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2515_INT() { return GPIO_NUM_35; }
 
   // CANFD_ADDON defines for MCP2517
-  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_12; }
-  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_5; }
-  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_34; }
-  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_18; }
+  virtual gpio_num_t MCP2517_CS()  { return GPIO_NUM_18; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_35; }
 
   // CHAdeMO support pin dependencies

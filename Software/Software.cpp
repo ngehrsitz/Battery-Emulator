@@ -802,14 +802,7 @@ void setup() {
 
   setup_shunt();
 
-#ifdef SDCARD
-  // Pre-initialize the SD card's SPI bus on the main task so it is ready before
-  // init_CAN() runs. get_spi_bus() is idempotent — init_sdcard() reuses this instance.
-  if (datalayer.system.info.CAN_SD_logging_active || datalayer.system.info.SD_logging_active) {
-    esp32hal->get_spi_bus(esp32hal->SD_SPI_BUS(), esp32hal->SD_SCLK_PIN(),
-                          esp32hal->SD_MISO_PIN(), esp32hal->SD_MOSI_PIN());
-  }
-#endif
+  esp32hal->init_spi();
 
   // Init CAN only after any CAN receivers have had a chance to register.
   init_CAN();

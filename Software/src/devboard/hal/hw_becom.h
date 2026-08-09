@@ -15,13 +15,12 @@ class BEComHal : public Esp32Hal {
   // New Drive Enable Pin for RS485 Half Duplex communication
   virtual gpio_num_t RS485_DE_PIN() { return GPIO_NUM_16; }
 
-  // 1st CANFD Interface: MCP2518
-  // SCK/SDI/SDO are S3 HSPI native pins (GPIO12/11/13)
+  // 1st CANFD Interface: MCP2518 on S3 HSPI (SCK/SDI/SDO are HSPI native pins)
   uint8_t MCP2517_BUS() override { return HSPI; }
-  virtual gpio_num_t MCP2517_SCK() { return GPIO_NUM_12; }
-  virtual gpio_num_t MCP2517_SDI() { return GPIO_NUM_11; }
-  virtual gpio_num_t MCP2517_SDO() { return GPIO_NUM_13; }
-  virtual gpio_num_t MCP2517_CS() { return GPIO_NUM_14; }
+  gpio_num_t HSPI_SCK()  override { return GPIO_NUM_12; }
+  gpio_num_t HSPI_MOSI() override { return GPIO_NUM_11; }
+  gpio_num_t HSPI_MISO() override { return GPIO_NUM_13; }
+  virtual gpio_num_t MCP2517_CS()  { return GPIO_NUM_14; }
   virtual gpio_num_t MCP2517_INT() { return GPIO_NUM_10; }
   virtual uint32_t MCP2517_FREQ() { return 40000000; }
 
