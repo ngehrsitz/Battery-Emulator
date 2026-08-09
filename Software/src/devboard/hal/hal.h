@@ -192,12 +192,19 @@ class Esp32Hal {
 
   // Boards override the bus methods they actually wire. Default = not connected (sck == GPIO_NUM_NC).
   virtual SpiBus HSPI_bus() { return {HSPI, GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC}; }
+#ifndef CONFIG_IDF_TARGET_ESP32S3
   virtual SpiBus VSPI_bus() { return {VSPI, GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC}; }
+#else
   virtual SpiBus FSPI_bus() { return {FSPI, GPIO_NUM_NC, GPIO_NUM_NC, GPIO_NUM_NC}; }
+#endif
 
   // Initialize all declared buses. Called once from main after init_stored_settings().
   void init_spi() {
-    for (auto& b : {HSPI_bus(), VSPI_bus(), FSPI_bus()}) {
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+    for (auto& b : {HSPI_bus(), VSPI_bus()}) {
+#else
+    for (auto& b : {HSPI_bus(), FSPI_bus()}) {
+#endif
       if (b.sck != GPIO_NUM_NC) {
         alloc_pins("SPI", b.sck, b.mosi, b.miso);
         _spi[b.bus].begin(b.sck, b.miso, b.mosi);
