@@ -93,6 +93,8 @@ class WaveshareS3Rs485CanHal : public Esp32Hal {
         return "";
       case comm_interface::CanFdAddonMcp2518:
         return "CAN FD (MCP2518 add-on)";
+      case comm_interface::CanFdAddonMcp2518_2:
+        return "";
       case comm_interface::Modbus:
         return "Modbus";
       case comm_interface::RS485:
