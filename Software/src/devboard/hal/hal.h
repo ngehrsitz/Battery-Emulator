@@ -23,22 +23,7 @@
 #endif
 
 #ifdef ETHERNET
-// Ethernet PHY / clock-mode kinds — project-local integer tags decoupled from
-// <ETH.h>'s enums. Board HAL headers return these; ethernet.cpp maps them to
-// eth_phy_type_t / eth_clock_mode_t at the call site. This keeps <ETH.h> (and
-// its extern "C" ESP-IDF headers) out of the HAL headers, which matters
-// because hal.cpp #includes the selected board HAL header from *inside* the
-// init_hal() function body.
-// Only kinds actually used by a supported board are listed
-enum EthPhyKind {
-  ETH_PHY_KIND_NONE = -1,
-  ETH_PHY_KIND_IP101 = 1,
-};
-
-enum EthClkKind {
-  ETH_CLK_KIND_NONE = -1,
-  ETH_CLK_KIND_GPIO0_IN = 0,
-};
+#include <ETH.h>
 #endif  // ETHERNET
 
 // Hardware Abstraction Layer base class.
@@ -240,16 +225,15 @@ class Esp32Hal {
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_NC; }
 
   // Ethernet (RMII PHY). Boards with an on-board Ethernet PHY override these.
-  // Type/clock-mode values are the project-local ETH_PHY_KIND_* / ETH_CLK_KIND_*
-  // integer tags (see enum EthPhyKind / EthClkKind above); ethernet.cpp maps them
-  // to eth_phy_type_t / eth_clock_mode_t. Keeps <ETH.h> out of HAL headers.
+  // Type/clock-mode return arduino-esp32's eth_phy_type_t / eth_clock_mode_t
+  // directly (see <ETH.h> included above, under the same ETHERNET guard).
 #ifdef ETHERNET
-  virtual int ETH_PHY_TYPE_ID() { return ETH_PHY_KIND_NONE; }
+  virtual eth_phy_type_t ETH_PHY_TYPE() { return ETH_PHY_MAX; }
   virtual int ETH_PHY_ADDR_NUM() { return -1; }
   virtual gpio_num_t ETH_PHY_MDC_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t ETH_PHY_MDIO_PIN() { return GPIO_NUM_NC; }
   virtual gpio_num_t ETH_PHY_POWER_PIN() { return GPIO_NUM_NC; }
-  virtual int ETH_CLK_MODE_ID() { return ETH_CLK_KIND_NONE; }
+  virtual eth_clock_mode_t ETH_CLK_MODE() { return ETH_CLOCK_GPIO0_IN; }
 #endif  // ETHERNET
 
   // Returns the available comm interfaces on this HW
