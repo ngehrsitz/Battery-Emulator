@@ -1,0 +1,31 @@
+#include "network_status.h"
+
+#include <WiFi.h>
+
+#include "../utils/logging.h"  // logging, syslog_start()
+#include "mdns.h"              // init_mDNS()
+
+bool network_connected() {
+  return WiFi.status() == WL_CONNECTED;
+}
+
+IPAddress network_localIP() {
+  return WiFi.localIP();
+}
+
+const char* network_hostname() {
+  return WiFi.getHostname();
+}
+
+const char* network_active_ifname() {
+  return "WiFi";
+}
+
+void network_bring_services_up(const IPAddress& ip) {
+  LOG_SET_NEXT_SEVERITY(5);  // notice
+  logging.printf("Got IP address: %s\n", ip.toString().c_str());
+  syslog_start();  // safe to call more than once
+#ifndef SMALL_FLASH_DEVICE
+  init_mDNS();
+#endif
+}
