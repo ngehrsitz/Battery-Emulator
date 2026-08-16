@@ -8,14 +8,15 @@
 
 // Safe to call from both interfaces. Both call sites run on the single
 // arduino-esp32 arduino_events task, so the guard needs no lock.
-void init_mDNS() {
+void init_mDNS(NetIface iface) {
   static bool mdns_started = false;
   if (mdns_started) {
     return;
   }
 
-  // Initialize mDNS .local resolution
-  if (!MDNS.begin(active_hostname())) {
+  // Initialize mDNS .local resolution under the hostname of the interface that
+  // brought the network up.
+  if (!MDNS.begin(active_hostname(iface))) {
     logging.println("Error setting up mDNS responder!");
   } else {
     // Advertise the web interface via bonjour

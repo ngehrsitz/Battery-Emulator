@@ -1098,9 +1098,9 @@ String processor(const String& var) {
       }
       content += "</h4>";
     }
-    // Hostname is interface-agnostic; show it once whenever any interface is up.
+    // Show the hostname of the active interface (Ethernet when up, else WiFi).
     if (network_connected()) {
-      content += "<h4>Hostname: " + html_escape(active_hostname()) + "</h4>";
+      content += "<h4>Hostname: " + html_escape(network_active_hostname()) + "</h4>";
       // Show both WiFi and Ethernet
 #ifdef ETHERNET
       if (ethernet_connected()) {

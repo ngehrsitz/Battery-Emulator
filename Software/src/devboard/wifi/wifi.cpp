@@ -135,7 +135,7 @@ void init_WiFi() {
   // Always set a WiFi hostname: the user's custom one if set, otherwise a default of
   // "battery-emulator-" + the last two bytes of the MAC address, so every device has a
   // meaningful, likely-unique hostname even without configuration.
-  String hostname = active_hostname();
+  String hostname = active_hostname(NetIface::Wifi);
   WiFi.setHostname(hostname.c_str());
   ssidAP = std::string(hostname.c_str());  // Access Point SSID now matches the hostname, be consistent with MDNS too
 
@@ -367,7 +367,7 @@ void connectToWiFi() {
 // mirrors ethernet.cpp's ETH_START handler and guarantees the router sees the explicit
 // name. Also re-fires on every reconnect, keeping the hostname sticky.
 void onWifiStart(WiFiEvent_t event, WiFiEventInfo_t info) {
-  WiFi.STA.setHostname(active_hostname().c_str());
+  WiFi.STA.setHostname(active_hostname(NetIface::Wifi).c_str());
 }
 
 // Event handler for successful Wi-Fi connection
@@ -413,7 +413,7 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
     logging.printf("Bootup complete, running version %s\n", version_number);
   }
 
-  network_bring_services_up(WiFi.localIP());  // log IP + syslog_start() + init_mDNS()
+  network_bring_services_up(NetIface::Wifi, WiFi.localIP());  // log IP + syslog_start() + init_mDNS()
 }
 
 // Event handler for Wi-Fi disconnection

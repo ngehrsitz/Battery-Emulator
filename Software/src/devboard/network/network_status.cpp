@@ -4,7 +4,7 @@
 
 #include "../utils/logging.h"  // logging, syslog_start()
 #include "../wifi/wifi.h"      // wifi_connected()
-#include "mdns.h"              // init_mDNS()
+#include "mdns.h"              // init_mDNS(NetIface)
 
 #ifdef ETHERNET
 #include "../ethernet/ethernet.h"
@@ -28,11 +28,20 @@ IPAddress network_localIP() {
   return WiFi.localIP();
 }
 
-void network_bring_services_up(const IPAddress& ip) {
+String network_active_hostname() {
+#ifdef ETHERNET
+  if (ethernet_connected()) {
+    return active_hostname(NetIface::Eth);
+  }
+#endif
+  return active_hostname(NetIface::Wifi);
+}
+
+void network_bring_services_up(NetIface iface, const IPAddress& ip) {
   LOG_SET_NEXT_SEVERITY(5);  // notice
   logging.printf("Got IP address: %s\n", ip.toString().c_str());
   syslog_start();  // safe to call more than once
 #ifndef SMALL_FLASH_DEVICE
-  init_mDNS();
+  init_mDNS(iface);
 #endif
 }

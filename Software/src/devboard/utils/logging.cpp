@@ -89,7 +89,7 @@ static void syslog_send(uint8_t sev, const char* proc, const char* msg) {
     // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
     // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
     // APP-NAME carries the FreeRTOS task that produced the line.
-    syslogUdp.printf("<%u>1 - %s %s - - - %s", pri, active_hostname().c_str(), proc, msg);
+    syslogUdp.printf("<%u>1 - %s %s - - - %s", pri, network_active_hostname().c_str(), proc, msg);
     syslogUdp.endPacket();
   }
 }

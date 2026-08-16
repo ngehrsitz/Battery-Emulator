@@ -1091,7 +1091,7 @@ bool init_mqtt(void) {
     return false;
   }
 
-  String hostname = active_hostname();
+  String hostname = network_active_hostname();
   topic_name = hostname;
   default_entity_id_prefix = hostname + "_";
   device_name = hostname;

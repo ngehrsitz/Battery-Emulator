@@ -7,7 +7,8 @@
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../ethernet/ethernet.h"  // ethernet_connected(), ETH (guarded by ETHERNET)
-#include "../network/hostname.h"   // default_hostname()
+#include "../network/hostname.h"        // default_hostname()
+#include "../network/network_status.h"  // network_active_hostname()
 #include "html_escape.h"
 #include "index_html.h"
 #include "src/battery/BATTERIES.h"
@@ -416,7 +417,7 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
   }
 
   if (var == "DEFAULTHOSTNAME") {
-    return default_hostname();
+    return network_active_hostname();
   }
 
   if (var == "BATTERYINTF") {
