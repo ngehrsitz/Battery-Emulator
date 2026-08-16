@@ -1,5 +1,4 @@
-#ifndef WIFI_H
-#define WIFI_H
+#pragma once
 
 #include <stdint.h>
 #include <cstdio>
@@ -39,4 +38,3 @@ class IPAddress {
   uint32_t addr;
 };
 
-#endif
