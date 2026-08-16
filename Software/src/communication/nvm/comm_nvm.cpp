@@ -268,11 +268,11 @@ void init_stored_settings() {
   custom_hostname = settings.getString("HOSTNAME").c_str();
 
   migrate_static_ip_settings(settings);
-  static_IP_enabled = settings.getBool("STATICIP", false);
-  static_local_IP = settings.getString("LOCALIP").c_str();
-  static_gateway = settings.getString("GATEWAY").c_str();
-  static_subnet = settings.getString("SUBNET").c_str();
-  static_dns = settings.getString("DNS").c_str();
+  wifi_static_IP_enabled = settings.getBool("STATICIP", false);
+  wifi_static_local_IP.fromString(settings.getString("LOCALIP").c_str());
+  wifi_static_gateway.fromString(settings.getString("GATEWAY").c_str());
+  wifi_static_subnet.fromString(settings.getString("SUBNET").c_str());
+  wifi_static_dns.fromString(settings.getString("DNS").c_str());
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
   mqtt_port = settings.getUInt("MQTTPORT", 1883);
