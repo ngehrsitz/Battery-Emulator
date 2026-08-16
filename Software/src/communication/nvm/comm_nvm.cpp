@@ -268,11 +268,17 @@ void init_stored_settings() {
   custom_hostname = settings.getString("HOSTNAME").c_str();
 
   migrate_static_ip_settings(settings);
-  static_IP_enabled = settings.getBool("STATICIP", false);
-  static_local_IP = settings.getString("LOCALIP").c_str();
-  static_gateway = settings.getString("GATEWAY").c_str();
-  static_subnet = settings.getString("SUBNET").c_str();
-  static_dns = settings.getString("DNS").c_str();
+  wifi_static_IP_enabled = settings.getBool("STATICIP", false);
+  // Stored as dotted-quad strings; parse into the native IPAddress globals. fromString() leaves the
+  // address unchanged on an empty/invalid string, so reset to 0.0.0.0 ("unset") first.
+  wifi_static_local_IP = IPAddress();
+  wifi_static_local_IP.fromString(settings.getString("LOCALIP").c_str());
+  wifi_static_gateway = IPAddress();
+  wifi_static_gateway.fromString(settings.getString("GATEWAY").c_str());
+  wifi_static_subnet = IPAddress();
+  wifi_static_subnet.fromString(settings.getString("SUBNET").c_str());
+  wifi_static_dns = IPAddress();
+  wifi_static_dns.fromString(settings.getString("DNS").c_str());
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
   mqtt_port = settings.getUInt("MQTTPORT", 1883);
