@@ -125,6 +125,7 @@ void init_WiFi() {
   // Register event handlers BEFORE WiFi.mode() creates the arduino_events task.
   // WiFi events can fire immediately once the task exists, and vector reallocation
   // during concurrent emplace_back() would corrupt the iterator in _checkForEvent().
+  WiFi.onEvent(onWifiStart, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_START);
   WiFi.onEvent(onWifiConnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_CONNECTED);
   WiFi.onEvent(onWifiDisconnect, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   WiFi.onEvent(onWifiGotIP, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_GOT_IP);
@@ -355,6 +356,18 @@ void connectToWiFi() {
   } else {
     logging.println("Wi-Fi already connected.");
   }
+}
+
+// Event handler for Wi-Fi STA interface start.
+// The pre-mode WiFi.setHostname() only writes a shared static buffer that WiFi.mode()
+// copies to the STA netif on the STA off->on transition. When Ethernet is already up
+// (init order: Ethernet then WiFi), STA is often already enabled by the time WiFi.mode()
+// runs, so that copy is skipped and the STA netif keeps the generic default. Applying the
+// hostname to the STA netif directly at STA_START - before its DHCP client starts -
+// mirrors ethernet.cpp's ETH_START handler and guarantees the router sees the explicit
+// name. Also re-fires on every reconnect, keeping the hostname sticky.
+void onWifiStart(WiFiEvent_t event, WiFiEventInfo_t info) {
+  WiFi.STA.setHostname(active_hostname().c_str());
 }
 
 // Event handler for successful Wi-Fi connection

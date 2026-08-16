@@ -22,6 +22,7 @@ bool wifi_connected();
 
 // In the real wifi.h
 #ifndef UNIT_TEST
+void onWifiStart(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
 void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
