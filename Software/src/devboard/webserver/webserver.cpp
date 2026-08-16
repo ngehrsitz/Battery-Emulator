@@ -1756,10 +1756,8 @@ void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
   if (ota_progress_timer.elapsed()) {
     if (final > 0) {
-      constexpr int BYTES_PER_KB = 1024;
       int percent = current * 100 / final;
-      logging.printf("OTA progress: %u%% (%u / %u KB)\n", percent, (unsigned)(current / BYTES_PER_KB),
-                     (unsigned)(final / BYTES_PER_KB));
+      logging.printf("OTA progress: %u%% (%u / %u B)\n", percent, current, final);
     }
     // Reset the "watchdog"
     ota_timeout_timer.reset();
