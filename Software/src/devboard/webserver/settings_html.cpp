@@ -7,7 +7,7 @@
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../ethernet/ethernet.h"  // ethernet_connected(), ETH (guarded by ETHERNET)
-#include "../network/hostname.h"        // default_hostname()
+#include "../network/hostname.h"        // custom_hostname
 #include "../network/network_status.h"  // network_active_hostname()
 #include "html_escape.h"
 #include "index_html.h"

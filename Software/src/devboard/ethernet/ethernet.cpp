@@ -3,7 +3,7 @@
 #ifdef ETHERNET
 
 #include "../hal/hal.h"
-#include "../network/hostname.h"        // active_hostname(NetIface::Eth)
+#include "../network/hostname.h"        // eth_hostname()
 #include "../network/network_status.h"  // network_bring_services_up()
 #include "../utils/events.h"
 #include "../utils/logging.h"
@@ -46,7 +46,7 @@ static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
       DEBUG_PRINTF("Ethernet started\n");
       // Hostname must be re-applied after ETH_START; setting it before begin()
       // isn't sufficient because the netif is created here.
-      ETH.setHostname(active_hostname(NetIface::Eth).c_str());
+      ETH.setHostname(eth_hostname().c_str());
       break;
 
     case ARDUINO_EVENT_ETH_CONNECTED:
@@ -60,7 +60,7 @@ static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
       eth_has_ip = true;
       // eth_has_ip is set above, so network_localIP() inside the shared helper
       // resolves to the Ethernet interface
-      network_bring_services_up(NetIface::Eth, ETH.localIP());  // log IP + syslog_start() + init_mDNS()
+      network_bring_services_up(eth_hostname(), ETH.localIP());  // log IP + syslog_start() + init_mDNS()
       break;
 
     case ARDUINO_EVENT_ETH_DISCONNECTED:

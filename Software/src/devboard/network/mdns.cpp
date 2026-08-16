@@ -4,11 +4,10 @@
 
 #include <ESPmDNS.h>
 #include "../utils/logging.h"
-#include "hostname.h"
 
 // Safe to call from both interfaces. Both call sites run on the single
 // arduino-esp32 arduino_events task, so the guard needs no lock.
-void init_mDNS(NetIface iface) {
+void init_mDNS(const String& hostname) {
   static bool mdns_started = false;
   if (mdns_started) {
     return;
@@ -16,7 +15,7 @@ void init_mDNS(NetIface iface) {
 
   // Initialize mDNS .local resolution under the hostname of the interface that
   // brought the network up.
-  if (!MDNS.begin(active_hostname(iface))) {
+  if (!MDNS.begin(hostname)) {
     logging.println("Error setting up mDNS responder!");
   } else {
     // Advertise the web interface via bonjour

@@ -4,7 +4,7 @@
 
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include "../network/hostname.h"        // active_hostname()
+#include "../network/hostname.h"        // (hostnames via network_active_hostname)
 #include "../network/network_status.h"  // network_connected()
 
 #define MAX_LINE_LENGTH_PRINTF 128
