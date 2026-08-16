@@ -1274,6 +1274,18 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #define ETH_STATIC_IP_HTML ""
 #endif  // ETHERNET
 
+#ifdef ETHERNET
+#define ETH_STATIC_IP_CSS \
+  R"rawliteral(
+    form .if-eth-staticip { display: none; }
+    form[data-ethstaticip="true"] .if-eth-staticip {
+      display: contents;
+    }
+  )rawliteral"
+#else
+#define ETH_STATIC_IP_CSS ""
+#endif  // ETHERNET
+
 #define SYSLOG_SETTING_HTML \
   R"rawliteral(
         <label>General logging to syslog server: </label>
@@ -1642,12 +1654,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     form[data-staticip="true"] .if-staticip {
       display: contents;
     }
-
-    form .if-eth-staticip { display: none; }
-    form[data-ethstaticip="true"] .if-eth-staticip {
-      display: contents;
-    }
-
+)rawliteral" ETH_STATIC_IP_CSS R"rawliteral(
     form .if-chgtapersoc { display: none; }
     form[data-chgtapersoc="true"] .if-chgtapersoc {
       display: contents;
