@@ -42,8 +42,7 @@ extern bool espnow_enabled;
 // ("AA:BB:CC:DD:EE:FF, 11-22-33-44-55-66"). Empty = broadcast to every device.
 extern std::string espnow_peer_macs;
 extern bool wifi_static_IP_enabled;
-// Held in memory as native IPAddress; persisted to NVM as dotted-quad strings (see comm_nvm.cpp).
-// An unset address is the default-constructed IPAddress (0.0.0.0).
+// Held in memory as native IPAddress; persisted to NVM as dotted-quad strings
 extern IPAddress wifi_static_local_IP;
 extern IPAddress wifi_static_gateway;
 extern IPAddress wifi_static_subnet;

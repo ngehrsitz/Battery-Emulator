@@ -21,8 +21,7 @@ std::string ssidAP;
 std::string passwordAP;
 const char* DEFAULT_AP_PASSWORD = "123456789";
 
-// Set your Static IP address. Only used incase Static address option is set.
-// Held as native IPAddress; 0.0.0.0 (default-constructed) means "unset".
+// Set your Static IP address. Only used incase Static address option is set
 bool wifi_static_IP_enabled = false;
 IPAddress wifi_static_local_IP;
 IPAddress wifi_static_gateway;

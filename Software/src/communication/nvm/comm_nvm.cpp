@@ -269,15 +269,9 @@ void init_stored_settings() {
 
   migrate_static_ip_settings(settings);
   wifi_static_IP_enabled = settings.getBool("STATICIP", false);
-  // Stored as dotted-quad strings; parse into the native IPAddress globals. fromString() leaves the
-  // address unchanged on an empty/invalid string, so reset to 0.0.0.0 ("unset") first.
-  wifi_static_local_IP = IPAddress();
   wifi_static_local_IP.fromString(settings.getString("LOCALIP").c_str());
-  wifi_static_gateway = IPAddress();
   wifi_static_gateway.fromString(settings.getString("GATEWAY").c_str());
-  wifi_static_subnet = IPAddress();
   wifi_static_subnet.fromString(settings.getString("SUBNET").c_str());
-  wifi_static_dns = IPAddress();
   wifi_static_dns.fromString(settings.getString("DNS").c_str());
 
   mqtt_server = settings.getString("MQTTSERVER").c_str();
