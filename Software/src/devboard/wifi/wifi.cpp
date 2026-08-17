@@ -193,7 +193,7 @@ static void check_ap_button() {
     // Configure lazily, after boot, so we never disturb GPIO0 strapping at reset.
     pinMode(pin, (pin < GPIO_NUM_34) ? INPUT_PULLUP : INPUT);
     ap_button_inited = true;
-    DEBUG_PRINTF("[AP-BTN] init pin=%d mode=%s\n", (int)pin, (pin < GPIO_NUM_34) ? "INPUT_PULLUP" : "INPUT");
+    Serial.printf("[AP-BTN] init pin=%d mode=%s\n", (int)pin, (pin < GPIO_NUM_34) ? "INPUT_PULLUP" : "INPUT");
     return;  // let the pull-up settle before the first read
   }
 
@@ -202,11 +202,12 @@ static void check_ap_button() {
 
   // DEBUG: sample the raw button level once per second so we can see whether
   // GPIO 38 (input-only, external pull-up) is floating/reading LOW spuriously.
+  // Raw Serial (not DEBUG_PRINTF) so it shows even with USB logging disabled.
   static unsigned long ap_btn_last_dbg = 0;
   if (now - ap_btn_last_dbg >= 1000) {
     ap_btn_last_dbg = now;
-    DEBUG_PRINTF("[AP-BTN] pin=%d raw=%d pressed=%d was=%d\n", (int)pin, digitalRead(pin), (int)pressed,
-                 (int)ap_button_was_pressed);
+    Serial.printf("[AP-BTN] pin=%d raw=%d pressed=%d was=%d\n", (int)pin, digitalRead(pin), (int)pressed,
+                  (int)ap_button_was_pressed);
   }
 
   if (pressed && !ap_button_was_pressed) {
@@ -227,7 +228,7 @@ static void check_ap_button() {
     // Released: act based on how long it was held.
     set_led_override(false, 0, 0);  // released: stop blink feedback
     const unsigned long held = now - ap_button_press_start;
-    DEBUG_PRINTF("[AP-BTN] released after held=%lu ms\n", held);
+    Serial.printf("[AP-BTN] released after held=%lu ms\n", held);
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
       BatteryEmulatorSettingsStore settings;
       settings.clearAll();
