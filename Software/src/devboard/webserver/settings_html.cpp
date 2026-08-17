@@ -232,27 +232,165 @@ const char* name_for_gpioopt6(GPIOOPT6 option) {
 const char* TRUE_CHAR_CODE = "\u2713";   //&#10003";
 const char* FALSE_CHAR_CODE = "\u2715";  //&#10005";
 
-// Builds the CSS rules that reveal the .if-dblcapable / .if-tricapable blocks
-// only for the battery integrations that actually implement parallel batteries.
-// Generated from battery_supports_double()/battery_supports_triple() so the UI
-// can never drift out of sync with what setup_battery() is able to instantiate.
-static String capability_css(const char* className, bool (*supported)(BatteryType)) {
-  String selectors;
+// Emits one "form .if-X { display:D; } SELECTORS .if-X { display:D2; }" block.
+// normal (inverted=false): hidden by default, shown when attribute matches a value.
+// inverted (inverted=true):  shown by default, hidden when attribute matches a value.
+struct CssRule {
+  const char* className;
+  const char* attribute;
+  bool inverted;
+  const char* values[16];  // null-terminated list of trigger values
+};
 
-  for (auto& type : enum_values<BatteryType>()) {
-    if (!supported(type)) {
-      continue;
-    }
-    if (!selectors.isEmpty()) {
-      selectors += ",";
-    }
-    selectors += "form[data-battery=\"" + String(to_underlying(type)) + "\"] ." + className;
+// clang-format off
+static const CssRule CSS_RULES[] = {
+  // inverted: shown by default, hidden when value matches
+  { "if-battery",    "battery",         true,  { "0", nullptr } },
+  { "if-inverter",   "inverter",        true,  { "0", nullptr } },
+  { "if-charger",    "charger",         true,  { "0", nullptr } },
+  { "if-shunt",      "shunttype",       true,  { "0", "3", nullptr } },
+  // ctclamp: shown only for shunttype=3 — represented as inverted with 0,1,2 hidden
+  { "if-ctclamp",    "shunttype",       true,  { "0", "1", "2", nullptr } },
+  // battery-specific sections
+  { "if-cbms",       "battery",         false, { "6","11","22","23","24","31","41","48","49","51", nullptr } },
+  { "if-nissan",     "battery",         false, { "21", nullptr } },
+  { "if-daly",       "battery",         false, { "23", nullptr } },
+  { "if-tesla",      "battery",         false, { "32","33", nullptr } },
+  { "if-estimated",  "battery",         false, { "3","4","6","8","14","16","24","26","32","33","40","41","44","50","51", nullptr } },
+  { "if-chgestimated","battery",        false, { "8","26","44", nullptr } },
+  { "if-socestimated","battery",        false, { "16","26","41","42", nullptr } },
+  // double/triple battery UI (capability predicates handled separately below)
+  { "if-dblbtr",     "dblbtr",          false, { "true", nullptr } },
+  { "if-tribtr",     "tribtr",          false, { "true", nullptr } },
+  // feature toggles
+  { "if-pwmcntctrl", "pwmcntctrl",      false, { "true", nullptr } },
+  { "if-cntctrl",    "cntctrl",         false, { "true", nullptr } },
+  { "if-perbmsreset","perbmsreset",     false, { "true", nullptr } },
+  { "if-measurecputemp","measurecputemp",false,{ "true", nullptr } },
+  { "if-extprecharge","extprecharge",   false, { "true", nullptr } },
+  // inverter-specific sections
+  { "if-sofar",      "inverter",        false, { "17", nullptr } },
+  { "if-byd",        "inverter",        false, { "2",  nullptr } },
+  { "if-bydmodbus",  "inverter",        false, { "3",  nullptr } },
+  // pylon: shown for battery=22 OR inverter=10 — two entries share the class
+  { "if-pylon",      "battery",         false, { "22", nullptr } },
+  { "if-pylon",      "inverter",        false, { "10", nullptr } },
+  { "if-pylon-inverter","inverter",     false, { "10", nullptr } },
+  { "if-pylon-battery", "battery",      false, { "22", nullptr } },
+  { "if-pylonish",   "inverter",        false, { "4","10","19", nullptr } },
+  { "if-solax",      "inverter",        false, { "18", nullptr } },
+  { "if-foxess",     "inverter",        false, { "5",  nullptr } },
+  { "if-sungrow",    "inverter",        false, { "21", nullptr } },
+  { "if-kostal",     "inverter",        false, { "9",  nullptr } },
+  // network sections
+  { "if-staticip",   "staticip",        false, { "true", nullptr } },
+  { "if-eth-staticip","ethstaticip",    false, { "true", nullptr } },
+  { "if-chgtapersoc","chgtapersoc",     false, { "true", nullptr } },
+  { "if-mqtt",       "mqttenabled",     false, { "true", nullptr } },
+  { "if-hadiscen",   "hadiscen",        false, { "true", nullptr } },
+  { "if-syslogen",   "syslogen",        false, { "true", nullptr } },
+  { "if-espnowenabled","espnowenabled", false, { "true", nullptr } },
+};
+// clang-format on
+
+static String emit_css_rule(const char* className, const char* attribute, bool inverted,
+                             const char* const* values) {
+  const char* dflt = inverted ? "contents" : "none";
+  const char* match = inverted ? "none" : "contents";
+
+  String selectors;
+  for (const char* const* v = values; *v != nullptr; ++v) {
+    if (!selectors.isEmpty())
+      selectors += ',';
+    selectors += "form[data-";
+    selectors += attribute;
+    selectors += "=\"";
+    selectors += *v;
+    selectors += "\"] .";
+    selectors += className;
   }
 
-  String css = "form ." + String(className) + " { display: none; }";
-
+  String css = "form .";
+  css += className;
+  css += "{display:";
+  css += dflt;
+  css += ";}";
   if (!selectors.isEmpty()) {
-    css += selectors + " { display: contents; }";
+    css += selectors;
+    css += "{display:";
+    css += match;
+    css += ";}";
+  }
+  return css;
+}
+
+// Generates all form .if-X visibility rules, including battery capability rules.
+static String settings_css() {
+  String css;
+
+  // Track which class names we have already emitted the default rule for,
+  // so that classes with two entries (like if-pylon) only get one default.
+  // We rely on the table being ordered so duplicate class names are adjacent.
+  const char* lastClass = nullptr;
+  for (const auto& rule : CSS_RULES) {
+    bool newClass = (lastClass == nullptr || strcmp(lastClass, rule.className) != 0);
+    lastClass = rule.className;
+
+    if (newClass) {
+      // Emit the default display rule once per class.
+      const char* dflt = rule.inverted ? "contents" : "none";
+      css += "form .";
+      css += rule.className;
+      css += "{display:";
+      css += dflt;
+      css += ";}";
+    }
+
+    // Emit the selector rule for these trigger values.
+    const char* match = rule.inverted ? "none" : "contents";
+    String selectors;
+    for (const char* const* v = rule.values; *v != nullptr; ++v) {
+      if (!selectors.isEmpty())
+        selectors += ',';
+      selectors += "form[data-";
+      selectors += rule.attribute;
+      selectors += "=\"";
+      selectors += *v;
+      selectors += "\"] .";
+      selectors += rule.className;
+    }
+    if (!selectors.isEmpty()) {
+      css += selectors;
+      css += "{display:";
+      css += match;
+      css += ";}";
+    }
+  }
+
+  // Battery capability rules: generated from predicates so the UI stays in sync.
+  struct {
+    const char* cls;
+    bool (*pred)(BatteryType);
+  } caps[] = { { "if-dblcapable", battery_supports_double }, { "if-tricapable", battery_supports_triple } };
+  for (const auto& cap : caps) {
+    String selectors;
+    for (auto& type : enum_values<BatteryType>()) {
+      if (!cap.pred(type))
+        continue;
+      if (!selectors.isEmpty())
+        selectors += ',';
+      selectors += "form[data-battery=\"";
+      selectors += String(to_underlying(type));
+      selectors += "\"] .";
+      selectors += cap.cls;
+    }
+    css += "form .";
+    css += cap.cls;
+    css += "{display:none;}";
+    if (!selectors.isEmpty()) {
+      css += selectors;
+      css += "{display:contents;}";
+    }
   }
 
   return css;
@@ -272,9 +410,8 @@ String settings_processor(const String& var, BatteryEmulatorSettingsStore& setti
     return options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
                             name_for_comm_interface);
   }
-  if (var == "BTRCAPCSS") {
-    return capability_css("if-dblcapable", battery_supports_double) +
-           capability_css("if-tricapable", battery_supports_triple);
+  if (var == "SETTINGSCSS") {
+    return settings_css();
   }
   if (var == "BATTCHEM") {
     return options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
@@ -1271,16 +1408,8 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </script>
   )rawliteral"
 
-#define ETH_STATIC_IP_CSS \
-  R"rawliteral(
-    form .if-eth-staticip { display: none; }
-    form[data-ethstaticip="true"] .if-eth-staticip {
-      display: contents;
-    }
-  )rawliteral"
 #else
 #define ETH_STATIC_IP_HTML ""
-#define ETH_STATIC_IP_CSS ""
 #endif  // ETHERNET
 
 #define SYSLOG_SETTING_HTML \
@@ -1471,212 +1600,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     border-bottom: 1px solid #4d5f69;
   }
 
-    form .if-battery, form .if-inverter, form .if-charger, form .if-shunt { display: contents; }
-    form[data-battery="0"] .if-battery { display: none; }
-    form[data-inverter="0"] .if-inverter { display: none; }    
-    form[data-charger="0"] .if-charger { display: none; }
-    form[data-shunttype="0"] .if-shunt,
-    form[data-shunttype="3"] .if-shunt { 
-      display: none; 
-    }
-    form[data-shunttype="0"] .if-ctclamp,
-    form[data-shunttype="1"] .if-ctclamp,
-    form[data-shunttype="2"] .if-ctclamp { 
-      display: none; 
-    }
-    form[data-shunttype="3"] .if-ctclamp { display: contents;}
-    
-
-    form .if-cbms { display: none; }
-    form[data-battery="6"] .if-cbms,
-    form[data-battery="11"] .if-cbms,
-    form[data-battery="22"] .if-cbms,
-    form[data-battery="23"] .if-cbms,
-    form[data-battery="24"] .if-cbms,
-    form[data-battery="31"] .if-cbms,
-    form[data-battery="41"] .if-cbms,
-    form[data-battery="48"] .if-cbms,
-    form[data-battery="49"] .if-cbms,
-    form[data-battery="51"] .if-cbms {
-      display: contents;
-    }
-
-    form .if-nissan { display: none; }
-    form[data-battery="21"] .if-nissan {
-      display: contents;
-    }
-
-    form .if-daly { display: none; }
-    form[data-battery="23"] .if-daly {
-      display: contents;
-    }
-
-    form .if-tesla { display: none; }
-    form[data-battery="32"] .if-tesla, form[data-battery="33"] .if-tesla {
-      display: contents;
-    }
-
-    form .if-estimated { display: none; } /* Integrations with manually set charge/discharge power */
-    form[data-battery="3"] .if-estimated, 
-    form[data-battery="4"] .if-estimated, 
-    form[data-battery="6"] .if-estimated, 
-    form[data-battery="8"] .if-estimated, 
-    form[data-battery="14"] .if-estimated, 
-    form[data-battery="16"] .if-estimated, 
-    form[data-battery="24"] .if-estimated,
-    form[data-battery="26"] .if-estimated,
-    form[data-battery="32"] .if-estimated, 
-    form[data-battery="33"] .if-estimated,
-    form[data-battery="40"] .if-estimated,
-    form[data-battery="41"] .if-estimated,
-    form[data-battery="44"] .if-estimated,
-    form[data-battery="50"] .if-estimated,
-    form[data-battery="51"] .if-estimated {
-      display: contents;
-    }
-
-    form .if-chgestimated { display: none; } /* Integrations where you sometimes want to fallback to user set charge/discharge power options, since they are for unknown reason not available on some packs */
-    form[data-battery="8"] .if-chgestimated,
-    form[data-battery="26"] .if-chgestimated,
-    form[data-battery="44"] .if-chgestimated {
-      display: contents;
-    }
-
-    form .if-socestimated { display: none; } /* Integrations where you can turn on SOC estimation */
-    form[data-battery="16"] .if-socestimated,
-    form[data-battery="26"] .if-socestimated,
-    form[data-battery="41"] .if-socestimated,
-    form[data-battery="42"] .if-socestimated {
-      display: contents;
-    }
-
-    /* Integrations that support running two/three batteries in parallel.
-       Rules are generated at runtime from the battery capability predicates. */
-    %BTRCAPCSS%
-
-    form .if-dblbtr { display: none; }
-    form[data-dblbtr="true"] .if-dblbtr {
-      display: contents;
-    }
-
-    form .if-tribtr { display: none; }
-    form[data-tribtr="true"] .if-tribtr {
-      display: contents;
-    }
-
-    form .if-pwmcntctrl { display: none; }
-    form[data-pwmcntctrl="true"] .if-pwmcntctrl {
-      display: contents;
-    }
-
-    form .if-cntctrl { display: none; }
-    form[data-cntctrl="true"] .if-cntctrl {
-      display: contents;
-    }
-
-    form .if-perbmsreset { display: none; }
-    form[data-perbmsreset="true"] .if-perbmsreset {
-      display: contents;
-    }
-
-    form .if-measurecputemp { display: none; }
-    form[data-measurecputemp="true"] .if-measurecputemp {
-      display: contents;
-    }
-
-    form .if-extprecharge { display: none; }
-    form[data-extprecharge="true"] .if-extprecharge {
-      display: contents;
-    }
-
-    form .if-sofar { display: none; }
-    form[data-inverter="17"] .if-sofar {
-      display: contents;
-    }
-
-    form .if-byd { display: none; }
-    form[data-inverter="2"] .if-byd {
-      display: contents;
-    }
-
-    form .if-bydmodbus { display: none; }
-    form[data-inverter="3"] .if-bydmodbus {
-      display: contents;
-    }
-
-    form .if-pylon { display: none; }
-    form[data-battery="22"] .if-pylon,
-    form[data-inverter="10"] .if-pylon {
-      display: contents;
-    }
-
-    form .if-pylon-inverter { display: none; }
-    form[data-inverter="10"] .if-pylon-inverter {
-      display: contents;
-    }
-
-    form .if-pylon-battery { display: none; }
-    form[data-battery="22"] .if-pylon-battery {
-      display: contents;
-    }
-
-    form .if-pylonish { display: none; }
-    form[data-inverter="4"] .if-pylonish, 
-    form[data-inverter="10"] .if-pylonish, 
-    form[data-inverter="19"] .if-pylonish {
-      display: contents;
-    }
-
-    form .if-solax { display: none; }
-    form[data-inverter="18"] .if-solax {
-      display: contents;
-    }
-
-    form .if-foxess { display: none; }
-    form[data-inverter="5"] .if-foxess {
-      display: contents;
-    }
-      
-    form .if-sungrow { display: none; }
-    form[data-inverter="21"] .if-sungrow {
-      display: contents;
-    }
-      
-    form .if-kostal { display: none; }
-    form[data-inverter="9"] .if-kostal {
-      display: contents;
-    }
-
-    form .if-staticip { display: none; }
-    form[data-staticip="true"] .if-staticip {
-      display: contents;
-    }
-)rawliteral" ETH_STATIC_IP_CSS R"rawliteral(
-    form .if-chgtapersoc { display: none; }
-    form[data-chgtapersoc="true"] .if-chgtapersoc {
-      display: contents;
-    }
-
-    form .if-mqtt { display: none; }
-    form[data-mqttenabled="true"] .if-mqtt {
-      display: contents;
-    }
-
-    form .if-hadiscen { display: none; }
-    form[data-hadiscen="true"] .if-hadiscen {
-      display: contents;
-    }
-
-    form .if-syslogen { display: none; }
-    form[data-syslogen="true"] .if-syslogen {
-      display: contents;
-    }
-
-    form .if-espnowenabled { display: none; }
-    form[data-espnowenabled="true"] .if-espnowenabled {
-      display: contents;
-    }
-
+    %SETTINGSCSS%
     </style>
 )rawliteral"
 
