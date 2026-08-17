@@ -564,6 +564,14 @@ void update_calculated_values(uint32_t currentMillis) {
 
 void check_reset_reason() {
   esp_reset_reason_t reason = esp_reset_reason();
+
+  // DEBUG: report why the PREVIOUS boot ended, on raw Serial, so an intermittent
+  // reset self-classifies on the next boot (panic/WDT/brownout/sw-restart) even
+  // when USB logging is disabled. Numeric esp_reset_reason_t so it maps 1:1 to
+  // the ESP-IDF enum regardless of Arduino event strings.
+  Serial.printf("[BOOT %8lu ms] previous reset reason = %d\n", (unsigned long)millis(), (int)reason);
+  Serial.flush();
+
   switch (reason) {
     case ESP_RST_UNKNOWN:  //Reset reason can not be determined
       set_event(EVENT_RESET_UNKNOWN, reason);

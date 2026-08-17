@@ -43,6 +43,14 @@ class DFRobotEdge101Hal : public Esp32Hal {
   // 25, 26, 27) are fixed by the ESP32 EMAC hardware and do not go through
   // the HAL pin allocator. GPIO 0 is repurposed as the RMII 50 MHz clock input,
   // which is why ETH_CLK_MODE is ETH_CLOCK_GPIO0_IN.
+  //
+  // NOTE: during ETH.begin() the arduino-esp32 ETH library logs a harmless
+  // "[E] __pinMode(): Invalid IO <n> selected" (n varies per boot). It comes
+  // from perimanClearPinBus() running on the library's internal RMII-clock
+  // "pin" field, which is an EMAC enum, not a real GPIO. Ethernet still
+  // initializes and works. The log_e is compile-time gated inside the vendored
+  // framework, so it cannot be suppressed from application code without
+  // patching the framework or lowering CORE_DEBUG_LEVEL build-wide; left as-is.
 #ifdef ETHERNET
   virtual int ETH_PHY_TYPE_ID() override { return ETH_PHY_KIND_IP101; }
   virtual int ETH_PHY_ADDR_NUM() override { return 1; }

@@ -81,6 +81,18 @@ bool rs485_begin(const char* owner, HardwareSerial& serial, uint32_t baud, uint3
     return false;
   }
 
+#ifndef UNIT_TEST
+  // Input-only ESP32 pads (GPIO 34-39) have no internal pull resistors. The
+  // arduino UART HAL nonetheless calls gpio_pullup_en() on the RX pin to idle
+  // the line high, which logs a harmless but noisy IDF error on those pads
+  // ("input-only pad has no internal PU"). RS485 lines are driven push-pull by
+  // the transceiver and never need the internal pull, so disable it up front.
+  // Must be set BEFORE serial.begin(), which is where the HAL applies it.
+  if (rx_pin >= GPIO_NUM_34 && rx_pin <= GPIO_NUM_39) {
+    uartEnableRxInternalPull(RS485_UART_NUM, false);
+  }
+#endif
+
   serial.begin(baud, config, rx_pin, tx_pin);
 
   if (rs485_de_pin != GPIO_NUM_NC) {
