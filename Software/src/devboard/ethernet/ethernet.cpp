@@ -72,9 +72,9 @@ static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
 }
 
 void init_Ethernet() {
-  // DEBUG_PRINTF("init_Ethernet: MDC=%d MDIO=%d POWER=%d phy_type=%d phy_addr=%d clk_mode=%d\n",
-  //              (int)esp32hal->ETH_PHY_MDC_PIN(), (int)esp32hal->ETH_PHY_MDIO_PIN(), (int)esp32hal->ETH_PHY_POWER_PIN(),
-  //              esp32hal->ETH_PHY_TYPE_ID(), esp32hal->ETH_PHY_ADDR_NUM(), esp32hal->ETH_CLK_MODE_ID());
+  DEBUG_PRINTF("init_Ethernet: MDC=%d MDIO=%d POWER=%d phy_type=%d phy_addr=%d clk_mode=%d\n",
+               (int)esp32hal->ETH_PHY_MDC_PIN(), (int)esp32hal->ETH_PHY_MDIO_PIN(), (int)esp32hal->ETH_PHY_POWER_PIN(),
+               esp32hal->ETH_PHY_TYPE_ID(), esp32hal->ETH_PHY_ADDR_NUM(), esp32hal->ETH_CLK_MODE_ID());
 
   // Track pins that go through the HAL allocator. The RMII data/clock pins
   // (GPIO 0/21/22/25/26/27 on classic ESP32) are fixed by the EMAC peripheral
