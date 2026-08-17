@@ -1,5 +1,4 @@
 #include "safety.h"
-#include <Arduino.h>  // Serial (raw debug output in graceful_restart)
 #include "../../battery/BATTERIES.h"
 #include "../../charger/CHARGERS.h"
 #include "../../datalayer/datalayer.h"
@@ -610,14 +609,6 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, EquipmentStop equipment
 
 void graceful_restart() {
   // Pause charge/discharge, and then restart the ESP32 within 5s (as soon as the power stops).
-
-  // DEBUG: log who requested the restart (caller return address) so a reboot
-  // loop can be traced to its trigger from the serial log alone. Raw Serial
-  // (not DEBUG_PRINTF) so it survives even when USB logging is disabled and
-  // flushes before the imminent reset wipes the FIFO.
-  Serial.printf("[RESTART %8lu ms] graceful_restart() requested from %p\n", (unsigned long)millis(),
-                __builtin_return_address(0));
-  Serial.flush();
 
   set_event(EVENT_RESTARTING, 0);
 

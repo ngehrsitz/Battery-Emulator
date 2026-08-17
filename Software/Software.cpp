@@ -96,32 +96,21 @@ void connectivity_loop(void*) {
 
 #ifdef ETHERNET
   // Bring up Ethernet before WiFi
-  Serial.printf("[BOOT %8lu ms] connectivity: init_Ethernet\n", (unsigned long)millis());
-  Serial.flush();
   init_Ethernet();
 #endif
 
   // Init wifi
-  Serial.printf("[BOOT %8lu ms] connectivity: init_WiFi\n", (unsigned long)millis());
-  Serial.flush();
   init_WiFi();
 
-  Serial.printf("[BOOT %8lu ms] connectivity: init_webserver\n", (unsigned long)millis());
-  Serial.flush();
   init_webserver();
 
 #ifndef SMALL_FLASH_DEVICE
-  Serial.printf("[BOOT %8lu ms] connectivity: init_display\n", (unsigned long)millis());
-  Serial.flush();
   init_display();
 #endif
 
   if (espnow_enabled) {
     init_espnow();
   }
-
-  Serial.printf("[BOOT %8lu ms] connectivity: entering loop\n", (unsigned long)millis());
-  Serial.flush();
 
   while (true) {
     START_TIME_MEASUREMENT(wifi);
@@ -564,14 +553,6 @@ void update_calculated_values(uint32_t currentMillis) {
 
 void check_reset_reason() {
   esp_reset_reason_t reason = esp_reset_reason();
-
-  // DEBUG: report why the PREVIOUS boot ended, on raw Serial, so an intermittent
-  // reset self-classifies on the next boot (panic/WDT/brownout/sw-restart) even
-  // when USB logging is disabled. Numeric esp_reset_reason_t so it maps 1:1 to
-  // the ESP-IDF enum regardless of Arduino event strings.
-  Serial.printf("[BOOT %8lu ms] previous reset reason = %d\n", (unsigned long)millis(), (int)reason);
-  Serial.flush();
-
   switch (reason) {
     case ESP_RST_UNKNOWN:  //Reset reason can not be determined
       set_event(EVENT_RESET_UNKNOWN, reason);
@@ -750,40 +731,17 @@ void setup() {
 
   init_serial();
 
-// DEBUG: boot-path checkpoints. Each prints the stage that is ABOUT to run and
-// flushes the UART, so if the emulator crashes/resets during init the serial log
-// pinpoints the last stage that started. Writes to Serial DIRECTLY (not via
-// DEBUG_PRINTF), because DEBUG_PRINTF is gated on the runtime usb_logging_active
-// setting and on the RAM web-log ring buffer that is wiped by a restart — the
-// exact conditions under which these boot logs go missing. Serial.flush() drains
-// the TX FIFO before a potential reset wipes it.
-#define BOOT_STEP(name)                                          \
-  do {                                                           \
-    Serial.printf("[BOOT %8lu ms] " name "\n", (unsigned long)millis()); \
-    Serial.flush();                                              \
-  } while (0)
-
   // We print this after setting up serial, so that is also printed if configured to do so
   DEBUG_PRINTF("Battery emulator %s build " __DATE__ " " __TIME__ "\n", version_number);
 
-  // DEBUG: unconditional boot banner (raw Serial) so the first firmware line is
-  // always visible even when runtime USB logging is disabled.
-  Serial.printf("[BOOT %8lu ms] setup() start, emulator %s build " __DATE__ " " __TIME__ "\n", (unsigned long)millis(),
-                version_number);
-  Serial.flush();
-
-  BOOT_STEP("init_events");
   init_events();
 
-  BOOT_STEP("init_stored_settings");
   init_stored_settings();
 
-  BOOT_STEP("start connectivity_loop task");
   // AP-button recovery must always run
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
                           &connectivity_loop_task, esp32hal->WIFICORE());
 
-  BOOT_STEP("led_init");
   led_init();
 
 #ifdef SDCARD
@@ -793,27 +751,20 @@ void setup() {
   }
 #endif  // SDCARD
 
-  BOOT_STEP("init_contactors");
   init_contactors();
 
   // Release any pins latched across the reboot. MUST run after init_contactors(), which
   // re-drives held pins (e.g. BMS_POWER HIGH) to their intended level while still latched;
   // releasing then hands that level to the pad with no glitch. Runs unconditionally so a
   // stale hold from a previous session is always cleared. No-op on boards without hold pins.
-  BOOT_STEP("release_pins_across_reset");
   release_pins_across_reset();
 
-  BOOT_STEP("init_precharge_control");
   init_precharge_control();
 
-  BOOT_STEP("init_rs485");
   init_rs485();
 
-  BOOT_STEP("setup_charger");
   setup_charger();
-  BOOT_STEP("setup_inverter");
   setup_inverter();
-  BOOT_STEP("setup_battery");
   setup_battery();
 
   /* Some battery types mandate the SOC-based charge power taper. Enforce at
@@ -833,20 +784,16 @@ void setup() {
     }
   }
 
-  BOOT_STEP("setup_shunt");
   setup_shunt();
 
   // Init CAN only after any CAN receivers have had a chance to register.
-  BOOT_STEP("init_CAN");
   init_CAN();
 
-  BOOT_STEP("init_equipment_stop_button");
   init_equipment_stop_button();
 
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
-  BOOT_STEP("check_reset_reason");
   check_reset_reason();
 
   // Initialize Task Watchdog for subscribed tasks
@@ -870,7 +817,6 @@ void setup() {
 
   // Start tasks
 
-  BOOT_STEP("start mqtt (if enabled)");
   if (mqtt_enabled) {
 
     if (init_mqtt()) {
@@ -882,11 +828,9 @@ void setup() {
     }
   }
 
-  BOOT_STEP("start core_loop task");
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
                           esp32hal->CORE_FUNCTION_CORE());
 
-  BOOT_STEP("setup() complete");
   DEBUG_PRINTF("Setup complete!\n");
 }
 
