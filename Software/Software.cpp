@@ -862,6 +862,7 @@ void setup() {
 
   // Start tasks
 
+  BOOT_STEP("start mqtt (if enabled)");
   if (mqtt_enabled) {
 
     if (init_mqtt()) {
@@ -873,9 +874,11 @@ void setup() {
     }
   }
 
+  BOOT_STEP("start core_loop task");
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
                           esp32hal->CORE_FUNCTION_CORE());
 
+  BOOT_STEP("setup() complete");
   DEBUG_PRINTF("Setup complete!\n");
 }
 
