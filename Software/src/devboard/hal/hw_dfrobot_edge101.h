@@ -33,8 +33,10 @@ class DFRobotEdge101Hal : public Esp32Hal {
   virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_5; }
 #endif  // SDCARD
 
-  // User LED
+  // User LED — plain single-color LED wired directly to the GPIO (not a WS2812/NeoPixel),
+  // so it is driven via PWM brightness rather than addressable-LED waveforms.
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_15; }
+  virtual bool LED_IS_MONOCHROME_GPIO() override { return true; }
 
   // User button — GPIO 38 is input-only on ESP32, no internal pull-up available; board has external pull-up
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_38; }
