@@ -13,24 +13,37 @@ enum class IndicatorLed : uint8_t { PRECHARGE = 0, CONTACTOR_NEG = 1, CONTACTOR_
 
 class LED {
  public:
-  LED(gpio_num_t pin, uint8_t maxBrightness, uint8_t numLeds = 1)
+  LED(gpio_num_t pin, uint8_t maxBrightness, uint8_t numLeds = 1, bool monochromeGpio = false)
       : pixels(pin, numLeds),
+        led_pin(pin),
         max_brightness(maxBrightness),
         brightness(maxBrightness),
         mode(led_mode_enum::CLASSIC),
-        num_leds(numLeds) {}
+        num_leds(numLeds),
+        monochrome(monochromeGpio) {}
 
-  LED(led_mode_enum mode, gpio_num_t pin, uint8_t maxBrightness, uint8_t numLeds = 1)
-      : pixels(pin, numLeds), max_brightness(maxBrightness), brightness(maxBrightness), mode(mode), num_leds(numLeds) {}
+  LED(led_mode_enum mode, gpio_num_t pin, uint8_t maxBrightness, uint8_t numLeds = 1, bool monochromeGpio = false)
+      : pixels(pin, numLeds),
+        led_pin(pin),
+        max_brightness(maxBrightness),
+        brightness(maxBrightness),
+        mode(mode),
+        num_leds(numLeds),
+        monochrome(monochromeGpio) {}
 
   void exe(void);
+  // For the monochrome (plain-GPIO) LED path: attach a PWM channel to the pin. Returns false on
+  // failure. No-op / returns true for the WS2812 path. Called once from led_init().
+  bool begin_monochrome(void);
 
  private:
   Adafruit_NeoPixel pixels;
+  gpio_num_t led_pin;
   uint8_t max_brightness;
   uint8_t brightness;
   led_mode_enum mode;
   uint8_t num_leds;  // 1 = STATUS only; >1 = STATUS + RGB indicator LEDs are present
+  bool monochrome;   // true = plain single-color LED on the GPIO, driven by PWM (not WS2812)
 
   void classic_run(void);
   void flow_run(void);
