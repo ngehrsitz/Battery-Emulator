@@ -9,14 +9,6 @@
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
-#ifdef ETHERNET
-#define EVENT_ETHERNET_CONNECT_ROW(XX) XX(EVENT_ETHERNET_CONNECT)
-#define EVENT_ETHERNET_DISCONNECT_ROW(XX) XX(EVENT_ETHERNET_DISCONNECT)
-#else
-#define EVENT_ETHERNET_CONNECT_ROW(XX)
-#define EVENT_ETHERNET_DISCONNECT_ROW(XX)
-#endif
-
 /* NOTE ON THE PER-BATTERY EVENTS BELOW
    Every EVENT_BATTERY<n>_* event exists once per pack. The three variants of an event MUST stay
    contiguous and in 1,2,3 order: set_event(event, data, battery) resolves the concrete event by
@@ -181,6 +173,10 @@
   XX(EVENT_WIFI_DISCONNECT)              \
   XX(EVENT_WIFI_AP_PASSWORD_DEFAULT)     \
   XX(EVENT_WIFI_AP_PROVISION_TIMEOUT)    \
+#ifdef ETHERNET
+  XX(EVENT_ETHERNET_CONNECT)             \
+  XX(EVENT_ETHERNET_DISCONNECT)          \
+#endif
   EVENT_ETHERNET_CONNECT_ROW(XX)         \
   EVENT_ETHERNET_DISCONNECT_ROW(XX)      \
   XX(EVENT_MQTT_CONNECT)                 \
