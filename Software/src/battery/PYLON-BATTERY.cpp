@@ -246,6 +246,34 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void PylonBattery::transmit_can(unsigned long currentMillis) {
+#ifdef PACE_PROBE
+  // TEMPORARY diagnostic: send native PACE (Asgoft/UGDAN) poll requests so the CAN logger
+  // can catch any reply. A PACE reply has target 0x01 (=PC) in the low byte and its source
+  // byte = the responding BCU address; data[0:1] echoes the command. Remove this block (and
+  // the members in the header) once we know whether/where the BMS answers PACE.
+  //   ID = (prior=2<<26)|(END=1<<24)|(dataIndex=0)|(src=0x01<<8)|target ; target = 32+addr (BCU)
+  //
+  // Widened sweep: cmd 10 to broadcast (0x1F) + every BCU target 0x20..0x52 (MainBmsAddr
+  // 0..50, the OEM app's full scan range), one frame every 200 ms so a full pass takes ~10 s
+  // and then repeats. If nothing answers across the whole range, PACE is not on this bus.
+  {
+    const uint16_t PROBE_CMD = 10;    // BCU total data (a reply proves PACE is live)
+    const uint8_t TGT_FIRST = 0x1F;   // 0x1F = broadcast, then 0x20..0x52 = BCU addr 0..50
+    const uint8_t TGT_LAST = 0x52;
+    const uint16_t NUM_TGTS = (uint16_t)(TGT_LAST - TGT_FIRST + 1);
+    if (currentMillis - previousMillisProbe >= 200) {
+      previousMillisProbe = currentMillis;
+      uint8_t tgt = (uint8_t)(TGT_FIRST + (probe_i % NUM_TGTS));
+      CAN_frame pace_req = {.FD = false,
+                            .ext_ID = true,
+                            .DLC = 8,
+                            .ID = (uint32_t)(0x09000100u | tgt),
+                            .data = {(uint8_t)(PROBE_CMD >> 8), (uint8_t)(PROBE_CMD & 0xFF), 0, 0, 0, 0, 0, 0}};
+      transmit_can_frame(&pace_req);
+      probe_i++;
+    }
+  }
+#endif
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;

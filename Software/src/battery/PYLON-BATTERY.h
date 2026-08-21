@@ -55,6 +55,13 @@ class PylonBattery : public CanBattery {
   unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
   unsigned long previousMillis5000 = 0;  // will store last time a 5s CAN Message was sent
 
+#ifdef PACE_PROBE
+  // TEMPORARY diagnostic: probe whether the BMS answers native PACE polls on this bus.
+  // Remove together with the block in transmit_can() once the question is settled.
+  unsigned long previousMillisProbe = 0;  // last time a PACE probe frame was sent
+  uint16_t probe_i = 0;                   // cycles through cmd/target combinations
+#endif
+
   //Actual content messages
   CAN_frame PYLON_3010 = {.FD = false,
                           .ext_ID = true,
