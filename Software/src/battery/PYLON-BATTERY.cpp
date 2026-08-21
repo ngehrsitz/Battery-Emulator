@@ -246,6 +246,31 @@ void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void PylonBattery::transmit_can(unsigned long currentMillis) {
+#ifdef PACE_PROBE
+  // TEMPORARY diagnostic: send native PACE (Asgoft/UGDAN) poll requests so the CAN logger
+  // can catch any reply. A PACE reply has 0x2101 in the low 16 bits (src 0x21 -> tgt 0x01)
+  // and data[0:1] echoing the command. Remove this block (and the members in the header)
+  // once we know whether/where the BMS answers PACE.
+  //   ID = (prior=2<<26)|(END=1<<24)|(dataIndex=0)|(src=0x01<<8)|target ; target = 32+addr (BCU)
+  {
+    static const uint16_t pace_cmds[] = {10, 12, 13, 11, 1, 57};
+    static const uint8_t pace_targets[] = {0x21, 0x20, 0x22, 0x1F};  // addr1, addr0, addr2, broadcast
+    const uint16_t NUM_CMDS = sizeof(pace_cmds) / sizeof(pace_cmds[0]);
+    const uint16_t NUM_TGTS = sizeof(pace_targets) / sizeof(pace_targets[0]);
+    if (currentMillis - previousMillisProbe >= INTERVAL_1_S) {
+      previousMillisProbe = currentMillis;
+      uint16_t cmd = pace_cmds[probe_i % NUM_CMDS];
+      uint8_t tgt = pace_targets[(probe_i / NUM_CMDS) % NUM_TGTS];
+      CAN_frame pace_req = {.FD = false,
+                            .ext_ID = true,
+                            .DLC = 8,
+                            .ID = (uint32_t)(0x09000100u | tgt),
+                            .data = {(uint8_t)(cmd >> 8), (uint8_t)(cmd & 0xFF), 0, 0, 0, 0, 0, 0}};
+      transmit_can_frame(&pace_req);
+      probe_i++;
+    }
+  }
+#endif
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
