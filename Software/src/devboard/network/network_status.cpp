@@ -42,10 +42,38 @@ void network_bring_services_up(const IPAddress& ip) {
 // platformio.ini, so esp_netif_set_default_netif() (called by setDefault())
 // automatically copies the winning interface's DNS into the global resolver.
 // setDefault() therefore handles both routing and DNS in one call.
+
+bool net_probe_enabled = false;
+
+#include <lwip/netdb.h>  // getaddrinfo / freeaddrinfo
+
+static bool net_probe_reachable() {
+  static const char* PROBE_HOST = "pool.ntp.org";
+  struct addrinfo hints = {};
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  struct addrinfo* res = nullptr;
+  const int err = getaddrinfo(PROBE_HOST, nullptr, &hints, &res);
+  if (err == 0 && res) {
+    freeaddrinfo(res);
+    return true;
+  }
+  return false;
+}
+
 void network_update_default_interface() {
   if (ethernet_connected()) {
     ETH.setDefault();
-  } else if (wifi_connected()) {
+    if (!net_probe_enabled || net_probe_reachable()) {
+      return;  // ETH confirmed (or probe disabled)
+    }
+    // ETH has an IP but DNS probe failed — fall back to WiFi if it's up
+    if (wifi_connected()) {
+      WiFi.STA.setDefault();
+    }
+    return;
+  }
+  if (wifi_connected()) {
     WiFi.STA.setDefault();
   }
 }

@@ -714,6 +714,10 @@ String raw_settings_processor(const String& var, BatteryEmulatorSettingsStore& s
     return settings.getBool("ETHSTATICIP") ? "checked" : "";
   }
 
+  if (var == "NETPROBEEN") {
+    return settings.getBool("NETPROBEEN") ? "checked" : "";
+  }
+
   if (var == "ETHLOCALIP") {
     return settings.getString("ETHLOCALIP");
   }
@@ -1317,6 +1321,13 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         </script>
   )rawliteral"
 
+#define ETH_NET_PROBE_HTML \
+  R"rawliteral(
+        <label>Enable connectivity probe on interface connect: </label>
+        <input type='checkbox' name='NETPROBEEN' value='on' %NETPROBEEN%
+            title="After an interface acquires an IP, resolve pool.ntp.org to verify internet reachability. Falls back to the other interface if the probe fails." />
+  )rawliteral"
+
 #define ETH_STATIC_IP_CSS \
   R"rawliteral(
     form .if-eth-staticip { display: none; }
@@ -1326,6 +1337,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
   )rawliteral"
 #else
 #define ETH_STATIC_IP_HTML ""
+#define ETH_NET_PROBE_HTML ""
 #define ETH_STATIC_IP_CSS ""
 #endif  // ETHERNET
 
@@ -1809,7 +1821,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
         placeholder="%DEFAULTHOSTNAME%"
         title="Optional: Hostname may only contain letters, numbers and '-'. If MQTT enabled, Topic name, Object ID prefix, HA device name and ID will be also set to this." />
 
-        )rawliteral" ETH_STATIC_IP_HTML R"rawliteral(
+        )rawliteral" ETH_STATIC_IP_HTML ETH_NET_PROBE_HTML R"rawliteral(
 
         <label>Use static IP address: (WiFi)</label>
         <input type='checkbox' name='STATICIP' value='on' %STATICIP% />

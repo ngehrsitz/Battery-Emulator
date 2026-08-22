@@ -474,7 +474,7 @@ void init_webserver() {
       "SDLOGENABLED", "CANLOGSD",
 #endif  // SDCARD
 #ifdef ETHERNET
-      "ETHSTATICIP",
+      "ETHSTATICIP", "NETPROBEEN",
 #endif  // ETHERNET
   };
 

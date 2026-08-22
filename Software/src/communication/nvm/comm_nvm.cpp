@@ -8,6 +8,7 @@
 #include "../../devboard/ethernet/ethernet.h"
 #include "../../devboard/mqtt/mqtt.h"
 #include "../../devboard/network/hostname.h"
+#include "../../devboard/network/network_status.h"
 #include "../../devboard/utils/logging.h"
 #include "../../devboard/webserver/webserver.h"
 #include "../../devboard/wifi/wifi.h"
@@ -267,6 +268,7 @@ void init_stored_settings() {
   passwordAP = settings.getString("APPASSWORD", DEFAULT_AP_PASSWORD).c_str();
   espnow_enabled = settings.getBool("ESPNOWENABLED", false);
   espnow_peer_macs = settings.getString("ESPNOWMACS").c_str();
+  net_probe_enabled = settings.getBool("NETPROBEEN", false);
   mqtt_enabled = settings.getBool("MQTTENABLED", false);
   mqtt_timeout_ms = settings.getUInt("MQTTTIMEOUT", 2000);
   mqtt_publish_interval_ms = settings.getUInt("MQTTPUBLISHMS", 5000);

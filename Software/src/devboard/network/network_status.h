@@ -18,4 +18,10 @@ void network_bring_services_up(const IPAddress& ip);
 // interface (Ethernet > WiFi STA). Call from every GOT_IP and DISCONNECTED
 // handler so the choice is always deterministic.
 void network_update_default_interface();
+
+// When true, network_update_default_interface() probes DNS reachability
+// (getaddrinfo on a fixed host) before committing to the preferred interface,
+// falling back to the other one if the probe fails. Loaded from NVM key
+// "NETPROBEEN". Default: false.
+extern bool net_probe_enabled;
 #endif
