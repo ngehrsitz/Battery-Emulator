@@ -59,11 +59,13 @@ static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
     case ARDUINO_EVENT_ETH_GOT_IP:
       eth_has_ip = true;
       network_bring_services_up(ETH.localIP());  // log IP + syslog_start() + init_mDNS()
+      network_update_default_interface();
       break;
 
     case ARDUINO_EVENT_ETH_DISCONNECTED:
       eth_has_ip = false;
       set_event(EVENT_ETHERNET_DISCONNECT, 0);
+      network_update_default_interface();
       break;
 
     default:
