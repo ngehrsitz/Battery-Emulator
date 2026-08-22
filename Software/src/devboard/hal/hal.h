@@ -222,6 +222,10 @@ class Esp32Hal {
   // Number of LEDs chained off LED_PIN(). Pixel 0 is always the STATUS LED; boards that replace
   // additional hardwired indicator LEDs with RGB LEDs on the same chain report more than 1 here.
   virtual uint8_t LED_COUNT() { return 1; }
+  // Most boards drive an addressable WS2812/NeoPixel on LED_PIN(). Boards whose LED is instead a
+  // plain single-color LED wired straight to the GPIO return true here, so the LED driver uses a
+  // PWM (brightness) path instead of bit-banging WS2812 waveforms into a non-addressable LED.
+  virtual bool LED_IS_MONOCHROME_GPIO() { return false; }
 
 #ifndef SMALL_FLASH_DEVICE
   // i2c display

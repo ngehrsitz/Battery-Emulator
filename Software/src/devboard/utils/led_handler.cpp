@@ -20,6 +20,11 @@ static uint32_t scale_color(uint32_t color, uint8_t brightness) {
 
 #define BPM_TO_MS(x) ((60000 / (x)))  // 60 * 1000 = 60000
 
+// Monochrome (plain-GPIO) LED PWM: 5 kHz is well above visible flicker and away from the LEDC
+// channels used by precharge/contactor control. 8-bit resolution matches the 0-255 brightness range.
+#define MONOCHROME_PWM_FREQ 5000
+#define MONOCHROME_PWM_RES 8
+
 #define HEARTBEAT_BASE 150      // 0.15 * 1000
 #define HEARTBEAT_PEAK1 800     // 0.80 * 1000
 #define HEARTBEAT_PEAK2 550     // 0.55 * 1000
@@ -63,7 +68,13 @@ bool led_init(void) {
     return false;
   }
 
-  led = new LED(datalayer.battery.status.led_mode, led_pin, esp32hal->LED_MAX_BRIGHTNESS(), esp32hal->LED_COUNT());
+  led = new LED(datalayer.battery.status.led_mode, led_pin, esp32hal->LED_MAX_BRIGHTNESS(), esp32hal->LED_COUNT(),
+                esp32hal->LED_IS_MONOCHROME_GPIO());
+
+  if (!led->begin_monochrome()) {
+    DEBUG_PRINTF("LED PWM setup failed\n");
+    return false;
+  }
 
   return true;
 }
@@ -76,12 +87,25 @@ void led_exe(void) {
   led->exe();
 }
 
+bool LED::begin_monochrome(void) {
+  if (!monochrome) {
+    return true;  // WS2812 path: nothing to set up here
+  }
+  // ledcAttach() auto-allocates a free LEDC channel, so it won't collide with the precharge/
+  // contactor PWM channels claimed elsewhere.
+  return ledcAttach(led_pin, MONOCHROME_PWM_FREQ, MONOCHROME_PWM_RES);
+}
+
 void LED::exe(void) {
   // Button-hold feedback: square-wave blink at full brightness, ahead of normal state.
   if (led_override_active && led_override_period_ms > 0) {
     const bool on = (millis() / (led_override_period_ms / 2)) % 2;
-    pixels.setPixelColor(on ? led_override_color : 0);
-    pixels.show();
+    if (monochrome) {
+      ledcWrite(led_pin, on ? max_brightness : 0);
+    } else {
+      pixels.setPixelColor(on ? led_override_color : 0);
+      pixels.show();
+    }
     return;
   }
 
@@ -111,6 +135,15 @@ void LED::exe(void) {
     default:
       classic_run();
       break;
+  }
+
+  // Monochrome (plain-GPIO) LED: single color, so status is conveyed only by the pulse pattern.
+  // Drive the pin's PWM duty from the animated brightness; STATUS_ERROR pins it fully on to match
+  // the WS2812 path's "red full brightness" behavior. Indicator LEDs don't exist on these boards.
+  if (monochrome) {
+    uint8_t duty = (get_emulator_status() == EMULATOR_STATUS::STATUS_ERROR) ? max_brightness : brightness;
+    ledcWrite(led_pin, duty);
+    return;
   }
 
   // Set color
