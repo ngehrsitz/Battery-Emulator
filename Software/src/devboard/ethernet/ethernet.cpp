@@ -52,14 +52,24 @@ static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
       // Encode link speed + duplex into the event's data
       set_event(EVENT_ETHERNET_CONNECT, eth_encode_link(ETH.linkSpeed(), ETH.fullDuplex()));
       clear_event(EVENT_ETHERNET_CONNECT);
+      // ETH has link but no IP yet. Re-pin the default interface NOW so that
+      // we stay online over WiFi
+      network_update_default_interface();
       break;
 
     case ARDUINO_EVENT_ETH_GOT_IP:
       network_bring_services_up(ETH.localIP());  // boot notice + log IP + syslog_start() + init_mDNS()
+      network_update_default_interface();
+      break;
+
+    case ARDUINO_EVENT_ETH_LOST_IP:
+      // Trigger the switch to WiFi
+      network_update_default_interface();
       break;
 
     case ARDUINO_EVENT_ETH_DISCONNECTED:
       set_event(EVENT_ETHERNET_DISCONNECT, 0);
+      network_update_default_interface();
       break;
 
     default:
@@ -83,6 +93,7 @@ void init_Ethernet() {
   WiFi.onEvent(onEthEvent, ARDUINO_EVENT_ETH_START);
   WiFi.onEvent(onEthEvent, ARDUINO_EVENT_ETH_CONNECTED);
   WiFi.onEvent(onEthEvent, ARDUINO_EVENT_ETH_GOT_IP);
+  WiFi.onEvent(onEthEvent, ARDUINO_EVENT_ETH_LOST_IP);
   WiFi.onEvent(onEthEvent, ARDUINO_EVENT_ETH_DISCONNECTED);
 
   const bool ok = ETH.begin(phy_type_from_kind(esp32hal->ETH_PHY_TYPE_ID()), esp32hal->ETH_PHY_ADDR_NUM(),
