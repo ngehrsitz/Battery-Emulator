@@ -34,7 +34,7 @@ class PylonBattery : public CanBattery {
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
- private:
+ protected:
   PylonExtendedData extended_data;
   PylonHtmlRenderer renderer = PylonHtmlRenderer(&extended_data);
   static const int MAX_CELL_DEVIATION_MV = 150;
