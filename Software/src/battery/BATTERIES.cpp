@@ -39,6 +39,7 @@
 #include "NISSAN-LEAF-BATTERY.h"
 #include "ORION-BMS.h"
 #include "PYLON-BATTERY.h"
+#include "UDAN-BATTERY.h"
 #include "RANGE-ROVER-PHEV-BATTERY.h"
 #include "RELION-LV-BATTERY.h"
 #include "RENAULT-KANGOO-BATTERY.h"
@@ -161,6 +162,8 @@ const char* name_for_battery_type(BatteryType type) {
       return NissanLeafBattery::Name;
     case BatteryType::Pylon:
       return PylonBattery::Name;
+    case BatteryType::Udan:
+      return UdanBattery::Name;
     case BatteryType::DalyBms:
       return DalyBms::Name;
     case BatteryType::RjxzsBms:
@@ -288,6 +291,8 @@ Battery* create_battery(BatteryType type) {
       return new NissanLeafBattery();
     case BatteryType::Pylon:
       return new PylonBattery();
+    case BatteryType::Udan:
+      return new UdanBattery();
     case BatteryType::DalyBms:
       return new DalyBms();
     case BatteryType::RjxzsBms:
