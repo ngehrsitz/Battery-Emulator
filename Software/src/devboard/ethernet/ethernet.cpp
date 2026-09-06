@@ -36,6 +36,7 @@ static eth_clock_mode_t clk_mode_from_kind(int kind) {
   }
 }
 
+// TODO align with wifi
 // Single multiplexed handler for the ETH_* subset of arduino-esp32's WiFi event
 // dispatcher. Emits our EVENT_ETHERNET_* pair.
 static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
