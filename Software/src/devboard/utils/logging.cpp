@@ -79,18 +79,20 @@ static bool syslog_online(void) {
 }
 
 // Called ONLY from syslog_task, and never with the mutex held.
-static void syslog_send(uint8_t sev, const char* proc, const char* msg) {
+// Returns if the send succeeded
+static bool syslog_send(uint8_t sev, const char* proc, const char* msg) {
   if (syslog_ip.empty()) {
-    return;
+    return true;  // no server configured -> treat as sent
   }
   uint8_t pri = (uint8_t)((syslog_facility & 0x1F) * 8 + (sev & 0x07));
-  if (syslogUdp.beginPacket(syslog_ip.c_str(), syslog_port)) {
-    // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
-    // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
-    // APP-NAME carries the FreeRTOS task that produced the line.
-    syslogUdp.printf("<%u>1 - %s %s - - - %s", pri, active_hostname().c_str(), proc, msg);
-    syslogUdp.endPacket();
+  if (!syslogUdp.beginPacket(syslog_ip.c_str(), syslog_port)) {
+    return false;
   }
+  // RFC 5424: <PRI>1 TIMESTAMP HOSTNAME APP PROCID MSGID MSG
+  // NILVALUE '-' timestamp -> the syslog server stamps on receipt.
+  // APP-NAME carries the FreeRTOS task that produced the line.
+  syslogUdp.printf("<%u>1 - %s %s - - - %s", pri, active_hostname().c_str(), proc, msg);
+  return syslogUdp.endPacket() != 0;
 }
 
 // Called from the logging path, in whatever task did the logging. Does no I/O.
@@ -155,7 +157,9 @@ static void syslog_queue_push(uint8_t sev, const char* msg) {
   xSemaphoreGive(syslogMutex);
 }
 
-// Pops one record under the lock, then sends it with the lock released.
+// Peeks one record under the lock, sends it with the lock released, and only
+// then advances the read cursor. A failed send leaves the record in the queue
+// so it is retried, instead of being silently lost.
 static void syslog_task(void* arg) {
   char msg[SYSLOG_MSG_MAX];
   char proc[configMAX_TASK_NAME_LEN];
@@ -164,31 +168,49 @@ static void syslog_task(void* arg) {
 
   for (;;) {
     bool have = false;
+    size_t recLen = 0;  // byte length of the peeked record; committed after a good send
 
     if (syslog_online() && syslogMutex != nullptr && xSemaphoreTake(syslogMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
       if (syslogQueue != nullptr && syslogQueuePos < syslogQueueLen) {
-        sev = (uint8_t)syslogQueue[syslogQueuePos++];
-        const char* rec = &syslogQueue[syslogQueuePos];
+        // Copy the record out WITHOUT moving syslogQueuePos: if the send fails we
+        // must be able to retry from exactly here next iteration. We track the
+        // record's byte LENGTH (not an absolute end offset) so the commit stays
+        // correct even if a producer slides the queue down while the lock is
+        // released between here and the commit below.
+        size_t pos = syslogQueuePos;
+        sev = (uint8_t)syslogQueue[pos++];
+        const char* rec = &syslogQueue[pos];
         snprintf(proc, sizeof(proc), "%s", rec);  // task name
-        syslogQueuePos += strlen(rec) + 1;
-        rec = &syslogQueue[syslogQueuePos];
+        pos += strlen(rec) + 1;
+        rec = &syslogQueue[pos];
         snprintf(msg, sizeof(msg), "%s", rec);  // message; copy out so we can send unlocked
-        syslogQueuePos += strlen(rec) + 1;
+        pos += strlen(rec) + 1;
+        recLen = pos - syslogQueuePos;
         have = true;
-
-        if (syslogQueuePos >= syslogQueueLen) {  // drained -> rewind
-          syslogQueuePos = 0;
-          syslogQueueLen = 0;
-          dropped = syslogDropped;
-          syslogDropped = 0;
-        }
       }
       xSemaphoreGive(syslogMutex);
     }
 
+    bool sent = false;
     if (have) {
-      syslog_send(sev, proc, msg);  // UDP happens OUTSIDE the lock
+      sent = syslog_send(sev, proc, msg);  // UDP happens OUTSIDE the lock
     }
+
+    if (have && sent && syslogMutex != nullptr && xSemaphoreTake(syslogMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
+      // Commit by advancing the read cursor by the record's length. A producer
+      // may have slid the pending region down while the lock was released, but a
+      // slide moves syslogQueuePos and the data together, so the +recLen delta
+      // still lands exactly past the record we just sent.
+      syslogQueuePos += recLen;
+      if (syslogQueuePos >= syslogQueueLen) {  // drained -> rewind
+        syslogQueuePos = 0;
+        syslogQueueLen = 0;
+        dropped = syslogDropped;
+        syslogDropped = 0;
+      }
+      xSemaphoreGive(syslogMutex);
+    }
+
     if (dropped) {
       char note[64];
       snprintf(note, sizeof(note), "syslog queue was full, %u line(s) dropped", dropped);
@@ -197,7 +219,8 @@ static void syslog_task(void* arg) {
     }
 
     // 2 ms between packets paces the boot replay without touching the core loop.
-    vTaskDelay(pdMS_TO_TICKS(have ? 2 : 50));
+    // A failed send backs off to 50 ms so a dead route isn't hot-spun.
+    vTaskDelay(pdMS_TO_TICKS((have && sent) ? 2 : 50));
   }
 }
 
