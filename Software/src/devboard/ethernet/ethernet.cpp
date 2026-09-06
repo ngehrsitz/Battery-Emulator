@@ -58,7 +58,7 @@ static void onEthEvent(WiFiEvent_t event, WiFiEventInfo_t /*info*/) {
       break;
 
     case ARDUINO_EVENT_ETH_GOT_IP:
-      network_bring_services_up(ETH.localIP());  // boot notice + log IP + syslog_start() + init_mDNS()
+      network_bring_services_up(ETH.localIP(), "Ethernet");  // boot notice + log IP + syslog_start() + init_mDNS()
       network_update_default_interface();
       break;
 
