@@ -167,10 +167,10 @@ void init_WiFi() {
       // the gateway, which is the resolver on virtually every home network.
       IPAddress dns = (wifi_static_dns != IPAddress()) ? wifi_static_dns : wifi_static_gateway;
       if (!WiFi.config(wifi_static_local_IP, wifi_static_gateway, wifi_static_subnet, dns)) {
-        logging.println("Static IP configuration rejected, falling back to DHCP");
+        logging.println("WiFi static IP configuration rejected, falling back to DHCP");
       }
     } else {
-      logging.println("Static IP settings are invalid, falling back to DHCP");
+      logging.println("WiFi static IP settings are invalid, falling back to DHCP");
     }
   }
 
