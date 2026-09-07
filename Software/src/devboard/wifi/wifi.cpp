@@ -350,7 +350,9 @@ void FullReconnectToWiFi() {
 }
 
 bool wifi_connected() {
-  return WiFi.status() == WL_CONNECTED;
+  // A static IP remains configured before association and after disconnection,
+  // so require the station link as well as an address.
+  return WiFi.STA.connected() && WiFi.STA.hasIP();
 }
 
 // Function to handle Wi-Fi connection
