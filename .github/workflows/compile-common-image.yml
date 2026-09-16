@@ -101,8 +101,7 @@ jobs:
         python-version: '3.13'
 
     - name: Install PlatformIO Core
-      #run: pip install --upgrade platformio
-      run: pip install --upgrade "platformio==6.1.19" # fix for No module named 'SCons.Tool.FortranCommon'
+      run: pip install --upgrade "pioarduino==6.1.19"
 
     # Add a line to print out the hash check values, to help debug why
     # PlatformIO might trigger a rebuild.
@@ -116,6 +115,11 @@ jobs:
         GITHUB_REPOSITORY: ${{ github.repository }}
         GITHUB_PR: ${{ github.event.pull_request.number }}
         GITHUB_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # pioarduino 6.2.0 (released 2026-09-15) is broken with platform 55.03.311.
+        # This prevents uv (used by penv_setup.py) from seeing that release.
+        # Raise this date once a fixed platform/pioarduino release is available.
+        # See pioarduino/platform-espressif32#529 and #531.
+        UV_EXCLUDE_NEWER: "2026-09-15T00:00:00Z"
       run: |
         set -o pipefail
         pio run -e ${{ matrix.pio_env }} 2>&1 | tee checkprogsize.txt
