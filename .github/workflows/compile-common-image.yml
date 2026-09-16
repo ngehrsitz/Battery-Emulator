@@ -104,6 +104,31 @@ jobs:
       #run: pip install --upgrade platformio
       run: pip install --upgrade "platformio==6.1.19" # fix for No module named 'SCons.Tool.FortranCommon'
 
+    # The pioarduino platform's second-stage "Arduino compile with custom
+    # libraries" build creates an isolated Python venv (penv) and installs
+    # `pioarduino` (the maintainer's pio-core fork) via `uv pip install --upgrade`.
+    # penv_setup.py declares `"pioarduino": ">=6.1.19"`, which upgrades to 6.2.0.
+    # That release is incompatible with platform 55.03.311: its internal SCons
+    # 4.8.1 copy is missing SCons.Tool.FortranCommon (removed in SCons 4.9+),
+    # and upgrading to SCons 4.11.1 introduces a separate bug (#531).
+    # The outer `platformio==6.1.19` pin above does NOT govern this inner penv.
+    # patch_tool_scons.py patches penv_setup.py to pin pioarduino==6.1.19 so
+    # the penv never upgrades past a working release.
+    # Confirmed fix by Jason2866 (maintainer). See pioarduino/platform-espressif32#529.
+    - name: Install espressif32 platform
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Pull the platform URL straight from platformio.ini so this stays in
+        # sync if the pinned platform version ever changes.
+        PLATFORM_URL="$(sed -n 's/^[[:space:]]*platform[[:space:]]*=[[:space:]]*\(https[^[:space:]]*\)/\1/p' platformio.ini | head -n1)"
+        echo "Installing platform: ${PLATFORM_URL}"
+        pio pkg install -g -p "${PLATFORM_URL}"
+
+    - name: Pin pioarduino==6.1.19 in penv (SCons FortranCommon fix)
+      shell: bash
+      run: python tools/patch_tool_scons.py
+
     # Add a line to print out the hash check values, to help debug why
     # PlatformIO might trigger a rebuild.
     - name: Insert cache check debugging
