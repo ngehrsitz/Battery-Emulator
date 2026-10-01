@@ -1,6 +1,7 @@
 #include "wifi.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"  // hold_pins_across_reset()
 #include "../../communication/nvm/comm_nvm.h"
+#include "../ethernet/ethernet.h"       // ethernet_connected()
 #include "../hal/hal.h"                 // esp32hal / AP_BUTTON_PIN()
 #include "../network/hostname.h"        // active_hostname()
 #include "../network/network_status.h"  // network_bring_services_up()
@@ -13,7 +14,6 @@ bool wifiap_enabled = true;
 bool espnow_enabled = true;         //If true, allows battery emulator to send battery status by using ESPNow messages
 std::string espnow_peer_macs = "";  //Empty = broadcast, otherwise a list of receiver MAC addresses
 uint16_t wifi_channel = 0;
-extern const char* version_number;
 
 std::string ssid;
 std::string password;
@@ -21,7 +21,7 @@ std::string ssidAP;
 std::string passwordAP;
 const char* DEFAULT_AP_PASSWORD = "123456789";
 
-// Set your Static IP address. Only used incase Static address option is set
+// Static IP configuration
 bool wifi_static_IP_enabled = false;
 IPAddress wifi_static_local_IP;
 IPAddress wifi_static_gateway;
@@ -146,6 +146,19 @@ void init_WiFi() {
     WiFi.mode(WIFI_STA);  // Only Router connection
   }
 
+#ifdef ETHERNET
+  // Lower the STA route priority below Ethernet's (ETH default is 50). ESP-IDF's
+  // automatic default-interface selection picks the highest route_prio among the
+  // interfaces that are *up* — regardless of whether they hold an IP — and the STA
+  // netif goes "up" the moment a (possibly failing) connection attempt starts. With
+  // the stock STA prio of 100 > ETH 50, every WiFi retry would transiently steal the
+  // default interface, and with CONFIG_ESP_NETIF_SET_DNS_PER_DEFAULT_NETIF the global
+  // resolver with it, pointing DNS at an interface that has no IP yet. Making STA the
+  // lowest keeps a working Ethernet link the default; onWifiGotIP() still explicitly
+  // pins WiFi via network_update_default_interface() when it genuinely connects.
+  WiFi.STA.setRoutePrio(10);
+#endif
+
   // Set WiFi to auto reconnect
   WiFi.setAutoReconnect(true);
 
@@ -167,10 +180,10 @@ void init_WiFi() {
       // the gateway, which is the resolver on virtually every home network.
       IPAddress dns = (wifi_static_dns != IPAddress()) ? wifi_static_dns : wifi_static_gateway;
       if (!WiFi.config(wifi_static_local_IP, wifi_static_gateway, wifi_static_subnet, dns)) {
-        logging.println("Static IP configuration rejected, falling back to DHCP");
+        logging.println("WiFi static IP configuration rejected, falling back to DHCP");
       }
     } else {
-      logging.println("Static IP settings are invalid, falling back to DHCP");
+      logging.println("WiFi static IP settings are invalid, falling back to DHCP");
     }
   }
 
@@ -297,12 +310,21 @@ void wifi_monitor() {
           }
         }
       } else {
-        // If no previous connection, force a full connection attempt
+        // If no previous connection, force a full connection attempt. On boards
+        // with Ethernet, skip forcing the AP up while Ethernet is online — the
+        // reconnect timeout that got us here gives Ethernet ample time to obtain
+        // an IP, so a live Ethernet link means we don't need a recovery AP.
+#ifdef ETHERNET
+        const bool eth_online = ethernet_connected();
+#else
+        const bool eth_online = false;
+#endif
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
-          logging.println("No previous OK connection, force a full connection attempt...");
           // Don't resurrect the rescue AP if its provisioning window already
           // expired with the factory-default password still in place.
-          if (!ap_provisioning_expired) {
+          if (!ap_provisioning_expired && !eth_online) {
+            logging.println(
+                "No previous OK connection, bringing up recovery AP and forcing a full connection attempt...");
             wifiap_enabled = true;
             WiFi.mode(WIFI_AP_STA);
             init_WiFi_AP();
@@ -328,7 +350,11 @@ void FullReconnectToWiFi() {
 }
 
 bool wifi_connected() {
-  return WiFi.status() == WL_CONNECTED;
+  // hasIP() reads the core's HAS_IP_BIT | HAS_STATIC_IP_BIT — true only with a
+  // usable IP, cleared on LOST_IP, and set for static-IP configs too. This mirrors
+  // ethernet_connected()==ETH.hasIP() so network_update_default_interface() treats
+  // both interfaces by the same "has a usable IP" rule.
+  return WiFi.STA.hasIP();
 }
 
 // Function to handle Wi-Fi connection
@@ -365,6 +391,13 @@ void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTERVAL;  // Reset the full reconnect interval
   current_check_interval = WIFI_CHECK_INTERVAL;                         // Reset the full reconnect interval
   clear_event(EVENT_WIFI_CONNECT);
+#ifdef ETHERNET
+  // STA_CONNECTED brings the STA netif "up" but it has NO IP yet (DHCP still to
+  // come). ESP-IDF would let this IP-less netif become the default by route_prio;
+  // re-assert the default here so a working Ethernet link keeps the route and DNS
+  // resolver until WiFi actually gets an IP (onWifiGotIP re-pins again then).
+  network_update_default_interface();
+#endif
 }
 
 static void log_ap_sta_event(const char* verb, const uint8_t* mac) {
@@ -384,15 +417,10 @@ void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
 
-  // One-shot boot notice — fires once per boot, not on every reconnect.
-  static bool boot_logged = false;
-  if (!boot_logged) {
-    boot_logged = true;
-    LOG_SET_NEXT_SEVERITY(5);  // RFC 5424 severity 5 = Notice
-    logging.printf("Bootup complete, running version %s\n", version_number);
-  }
-
-  network_bring_services_up(WiFi.localIP());  // log IP + syslog_start() + init_mDNS()
+  network_bring_services_up(WiFi.localIP(), "WiFi");  // boot notice + log IP + syslog_start() + init_mDNS()
+#ifdef ETHERNET
+  network_update_default_interface();
+#endif
 }
 
 // Event handler for Wi-Fi disconnection
@@ -401,6 +429,9 @@ void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   if (connected_once) {
     set_event(EVENT_WIFI_DISCONNECT, 0);  // also printing a log entry
   }
+#ifdef ETHERNET
+  network_update_default_interface();
+#endif
   //we dont do anything here, the reconnect will be handled by the monitor
   //too many events received when the connection is lost
   //normal reconnect retry start at first 2 seconds
