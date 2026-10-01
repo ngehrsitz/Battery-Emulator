@@ -41,8 +41,11 @@ CAN_frame pylon_4210(uint16_t voltage_dV, int16_t current_dA, uint8_t soc, uint8
   return frame;
 }
 
-// 0x4220: charge cutoff @0, discharge cutoff @2, max charge current (dA + 30000) @4,
-// max discharge current (dA + 30000) @6.
+// 0x4220:
+// charge cutoff @0
+// discharge cutoff @2
+// max charge current (dA + 30000) @4
+// max discharge current (dA + 30000) @6
 CAN_frame pylon_4220(int16_t max_charge_current_dA, int16_t max_discharge_current_dA) {
   CAN_frame frame = {};
   frame.ext_ID = true;
@@ -65,8 +68,7 @@ void decode_limits(PylonBattery* battery, uint16_t voltage_dV, int16_t max_charg
 
 }  // namespace
 
-// 0.1 A limit on a 360 V pack: 1 dA * 3600 dV / 100 = 36 W. Before the fix this was
-// (1/10)*(3600/10) = 0*360 = 0 W, which the UI then showed as 0.0 A.
+// 0.1 A limit on a 360 V pack: 1 dA * 3600 dV / 100 = 36 W
 TEST(PylonBatteryTests, SubOneAmpLimitDoesNotTruncateToZero) {
   auto battery = new PylonBattery();
   decode_limits(battery, 3600, 1, 1);
@@ -77,8 +79,7 @@ TEST(PylonBatteryTests, SubOneAmpLimitDoesNotTruncateToZero) {
   delete battery;
 }
 
-// A fractional-amp mid-range limit must keep the 0.5 A: 155 dA * 3600 dV / 100 = 5580 W.
-// Before the fix: (155/10)*(3600/10) = 15*360 = 5400 W, discarding the 0.5 A.
+// A fractional-amp mid-range limit must keep the 0.5 A: 155 dA * 3600 dV / 100 = 5580 W
 TEST(PylonBatteryTests, FractionalAmpLimitIsNotDiscarded) {
   auto battery = new PylonBattery();
   decode_limits(battery, 3600, 155, 155);
