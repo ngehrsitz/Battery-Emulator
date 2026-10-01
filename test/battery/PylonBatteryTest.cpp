@@ -5,19 +5,7 @@
 
 #include "Arduino.h"
 
-/* Pin the current-limit -> power-limit conversion in the Pylon/Dyness driver.
-
-   The bug (fixed): update_values() computed the power limit as
-   (max_*_current_dA / 10) * (voltage_dV / 10), integer-dividing each operand
-   by 10 before multiplying. Any limit under 1.0 A (max_*_current_dA < 10 dA)
-   truncated the current term to 0, so the power limit became 0 W, which the
-   aggregate then re-derived back into a displayed limit of 0.0 A. A real user
-   set a 0.1 A discharge limit on a ~360 V Pylontech HV pack and saw it reported
-   as 0.0 A / 0 W.
-
-   These tests drive the real CAN decode path: 0x4210 carries voltage/current/
-   SOC, 0x4220 carries the charge/discharge current limits (both offset by
-   30000, 0.1 A per LSB). update_values() then publishes the power limits. */
+// Pin the current-limit -> power-limit conversion in the Pylon/Dyness driver.
 
 namespace {
 
@@ -27,7 +15,12 @@ void put_le16(CAN_frame& frame, uint8_t index, uint16_t value) {
   frame.data.u8[index + 1] = (value >> 8) & 0xFF;
 }
 
-// 0x4210: voltage_dV @0, current word (dA + 30000) @2, temp word (dC + 1000) @4, SOC @6, SOH @7.
+// 0x4210:
+// voltage_dV @0
+// current word (dA + 30000) @2
+// temp word (dC + 1000) @4
+// SOC @6
+// SOH @7
 CAN_frame pylon_4210(uint16_t voltage_dV, int16_t current_dA, uint8_t soc, uint8_t soh) {
   CAN_frame frame = {};
   frame.ext_ID = true;
