@@ -132,7 +132,8 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
   int16_t temperature_min_dC;
   /** Instantaneous battery current in deciAmpere. 95 = 9.5 A */
   int16_t current_dA = 0;
-  /** Instantaneous battery current in deciAmpere. Sum of all batteries in the system 95 = 9.5 A */
+  /** Instantaneous battery current in deciAmpere. Sum of all batteries in the system 95 = 9.5 A. A current
+   * sensor fitted in place of their own provides this instead, while it has a reading */
   int16_t reported_current_dA = 0;
 
   /** uint8_t */
@@ -163,6 +164,13 @@ struct DATALAYER_BATTERY_STATUS_TYPE {
    * protocols and the safety layer, neither of which has an "unknown" to fall back on.
    */
   bool soh_available = true;
+
+  /** The pack's own BMS reports it fully charged, whatever its SOC reads. Not available for all
+   * battery types. The safety layer raises the installation's EVENT_BATTERY_FULL from this as
+   * well as from the SOC the inverter is sent, while the pack is on the DC link */
+  bool bms_reports_full = false;
+  /** The pack's own BMS reports it completely discharged. See bms_reports_full */
+  bool bms_reports_empty = false;
 
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
@@ -246,9 +254,6 @@ struct DATALAYER_BATTERY_SETTINGS_TYPE {
   /** Tesla specific settings that are edited on the fly when manually forcing a balance charge for LFP chemistry */
   /* Bool for specifying if user has requested manual function */
   bool user_requests_balancing = false;
-  bool user_requests_tesla_isolation_clear = false;
-  bool user_requests_tesla_bms_reset = false;
-  bool user_requests_tesla_soc_reset = false;
 };
 
 typedef struct {
@@ -257,6 +262,7 @@ typedef struct {
   DATALAYER_BATTERY_DTC_TYPE dtc;
 } DATALAYER_BATTERY_TYPE;
 
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 struct DATALAYER_CHARGER_TYPE {
   /** Charger setpoint voltage */
   float charger_setpoint_HV_VDC = 0;
@@ -288,6 +294,7 @@ struct DATALAYER_CHARGER_TYPE {
   /** True if the 12V DC/DC output is enabled */
   bool charger_aux12V_enabled = false;
 };
+#endif  // SMALL_FLASH_DEVICE
 
 struct DATALAYER_SHUNT_TYPE {
   /** measured battery voltage in mV (S-BOX) **/
@@ -311,11 +318,19 @@ struct DATALAYER_SHUNT_TYPE {
   bool contactors_engaged = false;
   /** True if shunt communication ok **/
   bool available = false;
+#ifndef SMALL_FLASH_DEVICE
+  /** True if the measured current is what the inverter is given, in place of what the batteries
+   * report (their sum, with several). Set by the shunt, honoured while available is true **/
+  bool replaces_battery_current = false;
+#endif  // SMALL_FLASH_DEVICE
 };
+
+static constexpr size_t LOGGED_CAN_MESSAGES_SIZE = 15000;
 
 struct DATALAYER_SYSTEM_INFO_TYPE {
   /** ring buffer with the debug log text, for displaying on the webserver /log page */
-  char logged_can_messages[15000] = {0};
+  /** allocated in setup() only when web logging is on; size is LOGGED_CAN_MESSAGES_SIZE */
+  char* logged_can_messages = nullptr;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
@@ -457,6 +472,8 @@ struct DATALAYER_SYSTEM_STATUS_TYPE {
  * two or three packs the energy figures are summed, the cell and temperature figures are the
  * extremes across the packs that are talking, and the power limits are capped to the weakest
  * pack - the same rule update_calculated_values() used to apply on top of datalayer.battery.
+ * Either way the four limit fields also carry the remote or manual current limit, in Watts as
+ * well as in Amperes.
  *
  * Keeping it separate is the point: datalayer.battery, .battery2 and .battery3 now only ever
  * hold the data of their own pack, so the per-pack cards, MQTT topics and ESP-NOW frames stop
@@ -522,7 +539,8 @@ struct DATALAYER_AGGREGATE_TYPE {
   uint16_t cell_min_voltage_mV = 3700;
 
   /** int16_t */
-  /** Sum of every pack's current, in deciAmpere. 95 = 9.5 A */
+  /** Sum of every pack's current, in deciAmpere. 95 = 9.5 A. A shunt with
+   * replaces_battery_current set provides this instead, while it has a reading */
   int16_t current_dA = 0;
   /** Highest temperature found in any pack, in d°C */
   int16_t temperature_max_dC = 0;
@@ -552,7 +570,9 @@ class DataLayer {
    * whenever it ran as the second or third pack */
   DATALAYER_BATTERY_SETTINGS_TYPE battery_settings;
   DATALAYER_SHUNT_TYPE shunt;
+#ifndef SMALL_FLASH_DEVICE
   DATALAYER_CHARGER_TYPE charger;
+#endif  // SMALL_FLASH_DEVICE
   DATALAYER_SYSTEM_TYPE system;
 };
 

@@ -24,6 +24,28 @@ void snapshot_bms_limits(DATALAYER_BATTERY_TYPE& pack) {
   pack.status.bms_max_discharge_power_W = pack.status.max_discharge_power_W;
 }
 
+#ifndef SMALL_FLASH_DEVICE
+/* These two live here rather than inline in the header so that no caller can inline them. GCC
+   (13 and 14, at -Os) miscompiles them once inlined into a function that hands in the status of a
+   pack it took by reference, as the main page's fill_card_view(pack) does: it carries the address
+   check below over to the pack itself, forgetting where in the pack the status sits, concludes
+   that pack 1 can never match, and drops that path as unreachable. Pack 1 then ran into code that
+   was not there, and the main page ended right after the combined card. */
+int16_t pack_current_dA(const DATALAYER_BATTERY_STATUS_TYPE& status) {
+  if (&status == &datalayer.battery.status && shunt_measures_battery1()) {
+    return shunt_current_dA();
+  }
+  return status.current_dA;
+}
+
+int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status) {
+  if (&status == &datalayer.battery.status && shunt_measures_battery1()) {
+    return current_dA_to_power_W(shunt_current_dA(), status.voltage_dV);
+  }
+  return status.active_power_W;
+}
+#endif  // SMALL_FLASH_DEVICE
+
 /* The SOC window belongs to the installation, not to any one pack: it decides what the inverter
    is told, and a scaled number on a single pack of several describes nothing that exists. So
    once there is more than one battery the packs report exactly what they would with scaling
@@ -123,6 +145,14 @@ void update_aggregate_values() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
 
   agg.current_dA = datalayer.battery.status.reported_current_dA;  // Already the sum of every pack
+#ifndef SMALL_FLASH_DEVICE
+  /* A current sensor fitted for this measures what actually flows between the batteries and the
+     inverter, so while it has a reading it replaces what the packs report - their sum, with
+     several. The packs keep their own figures. Power below follows from it. */
+  if (shunt_replaces_battery_current()) {
+    agg.current_dA = shunt_current_dA();
+  }
+#endif  // SMALL_FLASH_DEVICE
   agg.cell_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
   agg.cell_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
   agg.temperature_max_dC = datalayer.battery.status.temperature_max_dC;
@@ -242,7 +272,8 @@ void update_aggregate_values() {
  * single pack's numbers, and nothing they zero can be walked back here - capping to the
  * weakest pack can only ever lower the result. Doing it here rather than before the safety
  * layer also means a pack 2 or pack 3 fault that zeroes that pack's limits now reaches the
- * inverter, which it did not when the cap ran first.
+ * inverter, which it did not when the cap ran first. The one deliberate exception is forced
+ * recovery charge, which exists to charge an installation its BMS will not.
  */
 void update_aggregate_limits() {
   DATALAYER_AGGREGATE_TYPE& agg = datalayer.aggregate;
@@ -264,29 +295,48 @@ void update_aggregate_limits() {
     agg.max_discharge_power_W = MIN(agg.max_discharge_power_W, datalayer.battery3.status.max_discharge_power_W);
   }
 
-  /* Same power to current conversion and the same fallback as update_calculated_values() */
-  agg.max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
-  agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
+  /* Same conversion voltage and the same fallback as update_calculated_values() */
   uint16_t conversion_voltage_dV = agg.voltage_dV;
   if (conversion_voltage_dV <= 10) {
     conversion_voltage_dV = agg.max_design_voltage_dV;
   }
+
+  /* The remote restriction while one is active, otherwise the user setting - on the power as well
+     as on the current. BYD-Modbus, VCU-CAN and FoxESS-EP hand their inverter a power limit, so a
+     cap on the current alone never reached them, while the main page showed it as applied.
+     Deriving the current from the capped power keeps the two in step for every protocol. */
+  const uint16_t charge_cap_dA = effective_charge_cap_dA();
+  const uint16_t discharge_cap_dA = effective_discharge_cap_dA();
+  agg.max_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
+  agg.max_discharge_current_dA = datalayer.battery.status.max_discharge_current_dA;
   if (conversion_voltage_dV > 10) {
+    agg.max_charge_power_W = MIN(agg.max_charge_power_W, current_cap_to_power_W(charge_cap_dA, conversion_voltage_dV));
+    agg.max_discharge_power_W =
+        MIN(agg.max_discharge_power_W, current_cap_to_power_W(discharge_cap_dA, conversion_voltage_dV));
     agg.max_charge_current_dA = power_W_to_current_dA(agg.max_charge_power_W, conversion_voltage_dV);
     agg.max_discharge_current_dA = power_W_to_current_dA(agg.max_discharge_power_W, conversion_voltage_dV);
   }
-
-  /* Apply the remote restrictions if set, otherwise the user settings */
-  uint16_t charge_cap_dA = datalayer.battery_settings.remote_settings_limit_charge
-                               ? datalayer.battery_settings.max_remote_set_charge_dA
-                               : datalayer.battery_settings.max_user_set_charge_dA;
+  /* The power was rounded down, so the round trip cannot carry the current past the cap. With no
+     voltage to convert at, the power is left as it is and only the current can be capped. */
   if (agg.max_charge_current_dA > charge_cap_dA) {
     agg.max_charge_current_dA = charge_cap_dA;
   }
-  uint16_t discharge_cap_dA = datalayer.battery_settings.remote_settings_limit_discharge
-                                  ? datalayer.battery_settings.max_remote_set_discharge_dA
-                                  : datalayer.battery_settings.max_user_set_discharge_dA;
   if (agg.max_discharge_current_dA > discharge_cap_dA) {
     agg.max_discharge_current_dA = discharge_cap_dA;
+  }
+
+  /* Forced recovery charge: a deeply discharged installation the BMS will not charge gets a small
+     current anyway, for as long as update_machineryprotection() keeps the mode on - 30 minutes at
+     most, ended at once by a cell below 2.0 V. It replaces what the packs allow, in either
+     direction, as it always has: 5.0 A, less if the manual limit or an active remote limit is
+     lower. Applied here, after every filter, as a power as well as a current, because anything
+     written earlier was overwritten above. A pause or an equipment stop still stops it. */
+  if (datalayer.battery_settings.user_requests_forced_charging_recovery_mode && !emulator_pause_request_ON) {
+    uint16_t recovery_dA = MIN(MAX_CHARGEPOWER_RECOVERY_CHARGE_DA, datalayer.battery_settings.max_user_set_charge_dA);
+    recovery_dA = MIN(recovery_dA, charge_cap_dA);
+    agg.max_charge_current_dA = recovery_dA;
+    if (conversion_voltage_dV > 10) {
+      agg.max_charge_power_W = current_cap_to_power_W(recovery_dA, conversion_voltage_dV);
+    }
   }
 }

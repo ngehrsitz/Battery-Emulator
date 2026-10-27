@@ -7,7 +7,9 @@
 #include "freertos/task.h"
 
 #include "src/battery/BATTERIES.h"
+#ifndef SMALL_FLASH_DEVICE  // Chargers are left out of the small flash devices
 #include "src/charger/CHARGERS.h"
+#endif  // SMALL_FLASH_DEVICE
 #include "src/communication/Transmitter.h"
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
@@ -189,17 +191,14 @@ static void filter_charge_taper_soc(void) {
     /* Apply the effective current cap (remote if active, otherwise user, same
        precedence as update_calculated_values()) to the taper input, so the
        band acts on the limit the inverter actually sees instead of on BMS
-       headroom above the cap. Idempotent with the min() applied again in
-       filter_inverter_limits() and driver-side by BYD-Modbus. */
+       headroom above the cap. Idempotent with the same cap applied again in
+       filter_inverter_limits() and update_aggregate_limits(). */
     uint16_t voltage_dV = datalayer.battery.status.voltage_dV;
     if (voltage_dV <= 10) {
       voltage_dV = datalayer.battery.info.max_design_voltage_dV;
     }
     if (voltage_dV > 10) {
-      uint16_t cap_dA = datalayer.battery_settings.remote_settings_limit_charge
-                            ? datalayer.battery_settings.max_remote_set_charge_dA
-                            : datalayer.battery_settings.max_user_set_charge_dA;
-      uint32_t cap_W = ((uint32_t)cap_dA * voltage_dV) / 100;
+      uint32_t cap_W = current_cap_to_power_W(effective_charge_cap_dA(), voltage_dV);
       if (charge_W > cap_W) {
         charge_W = cap_W;
       }
@@ -258,10 +257,11 @@ static void filter_inverter_limits(void) {
   static uint32_t discharge_power_W_filtered = 0;
   static bool power_filter_initialized = false;
 
-  /* Apply user current caps to the filter INPUT, so the ramp time constant acts on the
-     effective range instead of being accelerated by headroom above the cap. Also makes
-     runtime cap increases ramp instead of jump. BYD-Modbus applies the same min() again
-     driver-side, which is now idempotent. */
+  /* Apply the current caps (remote if active, otherwise user) to the filter INPUT, so the ramp
+     time constant acts on the effective range instead of being accelerated by headroom above the
+     cap. Also makes runtime cap increases - an expiring remote limit included - ramp instead of
+     jump, and lets a remote limit above the user one through. update_aggregate_limits() applies
+     the same cap again, which is idempotent. */
   uint32_t charge_in = datalayer.battery.status.max_charge_power_W;
   uint32_t discharge_in = datalayer.battery.status.max_discharge_power_W;
   uint16_t cap_voltage_dV = datalayer.battery.status.voltage_dV;
@@ -269,14 +269,13 @@ static void filter_inverter_limits(void) {
     cap_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   }
   if (cap_voltage_dV > 10) {
-    uint32_t user_charge_cap_W = ((uint32_t)datalayer.battery_settings.max_user_set_charge_dA * cap_voltage_dV) / 100;
-    uint32_t user_discharge_cap_W =
-        ((uint32_t)datalayer.battery_settings.max_user_set_discharge_dA * cap_voltage_dV) / 100;
-    if (charge_in > user_charge_cap_W) {
-      charge_in = user_charge_cap_W;
+    const uint32_t charge_cap_W = current_cap_to_power_W(effective_charge_cap_dA(), cap_voltage_dV);
+    const uint32_t discharge_cap_W = current_cap_to_power_W(effective_discharge_cap_dA(), cap_voltage_dV);
+    if (charge_in > charge_cap_W) {
+      charge_in = charge_cap_W;
     }
-    if (discharge_in > user_discharge_cap_W) {
-      discharge_in = user_discharge_cap_W;
+    if (discharge_in > discharge_cap_W) {
+      discharge_in = discharge_cap_W;
     }
   }
 
@@ -393,13 +392,13 @@ void update_calculated_values(uint32_t currentMillis) {
     }
   }
 
-  /* Calculate sum of all currents from all batteries. 0 if they are not used*/
-  datalayer.battery.status.reported_current_dA =
-      (datalayer.battery.status.current_dA + datalayer.battery2.status.current_dA +
-       datalayer.battery3.status.current_dA);
+  /* Calculate sum of all currents from all batteries. 0 if they are not used. A current sensor
+     fitted in place of their own measures exactly this, and stands in while it has a reading. */
+  datalayer.battery.status.reported_current_dA = installation_current_dA();
 
   /* Calculate if battery or inverter is limiting factor*/
-  if (datalayer.battery.status.current_dA == 0) {  //Battery idle
+  const int16_t battery_current_dA = pack_current_dA(datalayer.battery.status);
+  if (battery_current_dA == 0) {  //Battery idle
     if (datalayer.battery.status.max_discharge_current_dA > 0) {
       //We allow discharge, but inverter does nothing. Inverter is limiting
       datalayer.battery_settings.inverter_limits_discharge = true;
@@ -412,15 +411,15 @@ void update_calculated_values(uint32_t currentMillis) {
     } else {
       datalayer.battery_settings.inverter_limits_charge = false;
     }
-  } else if (datalayer.battery.status.current_dA < 0) {  //Battery discharging
-    if (-datalayer.battery.status.current_dA < datalayer.battery.status.max_discharge_current_dA) {
+  } else if (battery_current_dA < 0) {  //Battery discharging
+    if (-battery_current_dA < datalayer.battery.status.max_discharge_current_dA) {
       datalayer.battery_settings.inverter_limits_discharge = true;
     } else {
       datalayer.battery_settings.inverter_limits_discharge = false;
     }
   } else {  // > 0 Battery charging
     //If actual current is smaller than max we allow, inverter is limiting factor
-    if (datalayer.battery.status.current_dA < datalayer.battery.status.max_charge_current_dA) {
+    if (battery_current_dA < datalayer.battery.status.max_charge_current_dA) {
       datalayer.battery_settings.inverter_limits_charge = true;
     } else {
       datalayer.battery_settings.inverter_limits_charge = false;
@@ -522,6 +521,11 @@ void core_loop(void*) {
     // Input, Runs as fast as possible
     receive_can();    // Receive CAN messages
     receive_rs485();  // Process serial2 RS485 interface
+#ifndef SMALL_FLASH_DEVICE
+    if (shunt) {
+      shunt->sample(millis());  // A shunt read directly, e.g. the QNHCK2-16 on an ADC pin
+    }
+#endif  // SMALL_FLASH_DEVICE
 
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 
@@ -574,10 +578,10 @@ void core_loop(void*) {
         check_parallel_battery_safety(3);
       }
       update_calculated_values(currentMillis);
-      update_machineryprotection();  // Check safeties
-      filter_charge_taper_soc();     // Taper charge limit near full SOC (runs after safeties, before LPF)
-      filter_inverter_limits();      // Smooth limits towards inverter (runs after safeties on purpose)
-      update_aggregate_limits();     // Fold pack 2/3 into the inverter limits, after every filter
+      update_machineryprotection(currentMillis);  // Check safeties
+      filter_charge_taper_soc();                  // Taper charge limit near full SOC (runs after safeties, before LPF)
+      filter_inverter_limits();                   // Smooth limits towards inverter (runs after safeties on purpose)
+      update_aggregate_limits();                  // Fold pack 2/3 into the inverter limits, after every filter
 
       // Update values heading towards inverter
       if (inverter) {
@@ -655,6 +659,16 @@ void setup() {
 
   init_stored_settings();
 
+  // Allocate the web log buffer right after the settings turn web logging on, before anything
+  // can log (report_ota_rollback(), the connectivity task): logging writes straight into it.
+  if (datalayer.system.info.web_logging_active) {
+    datalayer.system.info.logged_can_messages = (char*)calloc(1, LOGGED_CAN_MESSAGES_SIZE);
+    if (!datalayer.system.info.logged_can_messages) {
+      //Failed to allocate memory for logged CAN messages, disabling web logging
+      datalayer.system.info.web_logging_active = false;
+    }
+  }
+
   /* AFTER init_stored_settings(), because that is what turns the log sinks on.
      Reported earlier, the warning line went nowhere: web, USB, syslog and SD
      logging are all switched on from stored settings, so a rollback report made
@@ -690,7 +704,9 @@ void setup() {
 
   init_rs485();
 
+#ifndef SMALL_FLASH_DEVICE
   setup_charger();
+#endif  // SMALL_FLASH_DEVICE
   setup_inverter();
   setup_battery();
 
