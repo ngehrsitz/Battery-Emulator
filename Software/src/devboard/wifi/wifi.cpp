@@ -206,17 +206,17 @@ static void check_ap_button() {
     // Still held: white blink, rate steps up as each tier is reached.
     const unsigned long held = now - ap_button_press_start;
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
-      set_led_override(true, LED_COLOR_WHITE, 100);  // >=30 s
+      set_led_feedback(LedFeedback::FACTORY_RESET_READY);  // >=30 s: 100 ms period
     } else if (held >= AP_BUTTON_STA_WIPE_MS) {
-      set_led_override(true, LED_COLOR_WHITE, 200);  // >=15 s
+      set_led_feedback(LedFeedback::NETWORK_RESET_READY);  // >=15 s: 200 ms period
     } else if (held >= AP_BUTTON_AP_MS) {
-      set_led_override(true, LED_COLOR_WHITE, 400);  // >=5 s
+      set_led_feedback(LedFeedback::AP_READY);  // >=5 s: 400 ms period
     } else {
-      set_led_override(false, 0, 0);  // <5 s: no feedback yet
+      set_led_feedback(LedFeedback::NONE);  // <5 s: no feedback yet
     }
   } else if (!pressed && ap_button_was_pressed) {
     // Released: act based on how long it was held.
-    set_led_override(false, 0, 0);  // released: stop blink feedback
+    set_led_feedback(LedFeedback::NONE);  // released: stop blink feedback
     const unsigned long held = now - ap_button_press_start;
     if (held >= AP_BUTTON_FACTORY_RESET_MS) {
       BatteryEmulatorSettingsStore settings;

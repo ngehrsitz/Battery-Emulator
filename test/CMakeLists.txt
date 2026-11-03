@@ -62,9 +62,6 @@ include_directories("${source_dir}/googletest/include"
 
 include_directories(emul)
 
-# For eModBus
-add_compile_definitions(ESP32 HW_LILYGO COMMON_IMAGE)
-
 # The test sources are globbed. They were a hand-written list, which put every
 # branch that adds a test file in conflict with every other one - the list is
 # the only thing they all touch - for no benefit: a new test file appears in the
@@ -79,6 +76,9 @@ include_directories(../Software)
 
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 list(FILTER TEST_SOURCES EXCLUDE REGEX "/build/")
+# Native LED configurations have separate executables so PWM and the LilyGo 2CAN
+# color-order settings are exercised without mixing incompatible board defines.
+list(FILTER TEST_SOURCES EXCLUDE REGEX "/led/")
 
 # The firmware sources stay an explicit, curated list, and must. It is not
 # "every file under Software/src" - it is the subset that links in a host build.
@@ -99,7 +99,6 @@ add_executable(tests
     ../Software/src/devboard/utils/common_functions.cpp
     ../Software/src/devboard/utils/ota_confirm_gate.cpp
     ../Software/src/devboard/utils/led_handler.cpp
-    ../Software/src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.cpp
     ../Software/src/datalayer/datalayer.cpp
     ../Software/src/datalayer/battery_aggregate.cpp
     ../Software/src/datalayer/datalayer_extended.cpp
@@ -215,7 +214,29 @@ target_link_libraries(tests
 
 # Define the path for tests
 target_compile_definitions(tests PRIVATE 
+    ESP32 HW_LILYGO COMMON_IMAGE
     TEST_CAN_LOG_DIR="${CMAKE_SOURCE_DIR}/can_log_based/can_logs"
 )
 
 gtest_discover_tests(tests)
+
+# Exercise the same state controller and native blink programs with each LED configuration.
+foreach(backend IN ITEMS rgb dfrobot_edge101 lilygo_2can)
+    add_executable(led_tests_${backend}
+        led/led_handler_tests.cpp
+        emul/time.cpp
+        emul/led_indicator.cpp
+        ../Software/src/datalayer/datalayer.cpp
+        ../Software/src/devboard/utils/led_handler.cpp
+    )
+    target_compile_definitions(led_tests_${backend} PRIVATE ESP32)
+    if(backend STREQUAL "dfrobot_edge101")
+        target_compile_definitions(led_tests_${backend} PRIVATE HW_DFROBOT_EDGE101)
+    elseif(backend STREQUAL "lilygo_2can")
+        target_compile_definitions(led_tests_${backend} PRIVATE HW_LILYGO2CAN)
+    else()
+        target_compile_definitions(led_tests_${backend} PRIVATE HW_LILYGO)
+    endif()
+    target_link_libraries(led_tests_${backend} libgtest)
+    gtest_discover_tests(led_tests_${backend} TEST_PREFIX "${backend}.")
+endforeach()

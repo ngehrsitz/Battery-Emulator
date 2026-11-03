@@ -33,8 +33,10 @@ class DFRobotEdge101Hal : public Esp32Hal {
   virtual gpio_num_t SD_CS_PIN() { return GPIO_NUM_5; }
 #endif  // SDCARD
 
-  // User LED
+  // Single-color user LED, wired from 3V3 to GPIO15: LOW is on.
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_15; }
+  LedType LED_TYPE() override { return LedType::PWM; }
+  bool LED_ACTIVE_LEVEL_HIGH() override { return false; }
 
   // User button — GPIO 38 is input-only on ESP32, no internal pull-up available; board has external pull-up
   virtual gpio_num_t AP_BUTTON_PIN() { return GPIO_NUM_38; }
