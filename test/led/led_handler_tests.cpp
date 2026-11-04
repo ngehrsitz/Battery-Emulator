@@ -159,14 +159,12 @@ int32_t pack_power_W(const DATALAYER_BATTERY_STATUS_TYPE& status) {
 
 TEST_F(LedHandlerTest, BoardHalSelectsNativeHardwareConfiguration) {
 #ifdef HW_DFROBOT_EDGE101
-  EXPECT_EQ(test_hal->LED_TYPE(), LedType::PWM);
   EXPECT_EQ(led_test_pwm_config().gpio_num, GPIO_NUM_15);
   EXPECT_FALSE(led_test_pwm_config().is_active_level_high);
   EXPECT_FALSE(led_test_pwm_config().timer_inited);
   EXPECT_EQ(led_test_pwm_config().channel, LEDC_CHANNEL_4);
   EXPECT_EQ(led_test_pwm_config().timer_num, LEDC_TIMER_2);
 #else
-  EXPECT_EQ(test_hal->LED_TYPE(), LedType::ADDRESSABLE_RGB);
   EXPECT_EQ(led_test_strip_config().led_strip_cfg.strip_gpio_num, GPIO_NUM_15);
   EXPECT_EQ(led_test_strip_config().led_strip_cfg.max_leds, 5u);
   EXPECT_EQ(led_test_strip_config().led_strip_cfg.led_model, LED_MODEL_WS2812);

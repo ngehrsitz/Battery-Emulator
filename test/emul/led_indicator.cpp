@@ -99,16 +99,20 @@ esp_err_t create(const led_indicator_config_t* config, bool pwm, uint32_t count,
 }
 }  // namespace
 
+// Defining only the selected factory makes the host link catch unused backends.
+#ifdef HW_DFROBOT_EDGE101
 esp_err_t led_indicator_new_ledc_device(const led_indicator_config_t* config, const led_indicator_ledc_config_t* pwm,
                                         led_indicator_handle_t* handle) {
   runtime().pwm_config = *pwm;
   return create(config, true, 1, handle);
 }
+#else
 esp_err_t led_indicator_new_strips_device(const led_indicator_config_t* config,
                                           const led_indicator_strips_config_t* strip, led_indicator_handle_t* handle) {
   runtime().strip_config = *strip;
   return create(config, false, strip->led_strip_cfg.max_leds, handle);
 }
+#endif
 esp_err_t led_indicator_delete(led_indicator_handle_t handle) {
   auto* led = static_cast<MockIndicator*>(handle);
   auto& handles = runtime().indicators;

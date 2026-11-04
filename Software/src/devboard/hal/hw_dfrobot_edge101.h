@@ -35,7 +35,6 @@ class DFRobotEdge101Hal : public Esp32Hal {
 
   // Single-color user LED, wired from 3V3 to GPIO15: LOW is on.
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_15; }
-  LedType LED_TYPE() override { return LedType::PWM; }
   bool LED_ACTIVE_LEVEL_HIGH() override { return false; }
 
   // User button — GPIO 38 is input-only on ESP32, no internal pull-up available; board has external pull-up

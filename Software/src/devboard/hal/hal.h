@@ -205,7 +205,6 @@ class Esp32Hal {
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
-  virtual LedType LED_TYPE() { return LedType::ADDRESSABLE_RGB; }
   virtual bool LED_ACTIVE_LEVEL_HIGH() { return true; }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
   // Number of LEDs chained off LED_PIN(). Pixel 0 is always the STATUS LED; boards that replace

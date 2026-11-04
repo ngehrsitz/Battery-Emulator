@@ -15,6 +15,11 @@ constexpr uint16_t SAMPLE_MS = 10;
 constexpr uint16_t FLOW_PERIOD_MS = 3000;
 constexpr int32_t FLOW_IDLE_BAND_W = 200;
 constexpr uint32_t WHITE = 0xFFFFFF;
+#ifdef HW_DFROBOT_EDGE101
+constexpr bool PWM_LED = true;
+#else
+constexpr bool PWM_LED = false;
+#endif
 
 // Only one base program is active. Feedback preempts it regardless of emulator
 // severity, which events.cpp already resolves. Two base buffers let us prepare a
@@ -138,7 +143,6 @@ uint32_t color(uint32_t hue, uint8_t brightness, bool swap) {
 
 struct Controller {
   led_indicator_handle_t handle = nullptr;
-  bool pwm;
   uint8_t maximum;
   uint8_t count;
   std::vector<blink_step_t> base[2];
@@ -151,7 +155,7 @@ struct Controller {
   uint8_t last_indicator_mask = 0xFF;
   uint32_t last_indicator_color = UINT32_MAX;
 
-  Controller(bool pwm, uint8_t maximum, uint8_t count) : pwm(pwm), maximum(maximum), count(count) {
+  Controller(uint8_t maximum, uint8_t count) : maximum(maximum), count(count) {
     // Equal adjacent samples are merged. Reserve a bounded amount for the usual
     // 20/40 brightness limits instead of storing every 10 ms sample permanently.
     for (auto& buffer : base) {
@@ -173,9 +177,9 @@ struct Controller {
     }
   }
 
-  blink_step_type_t step_type() const { return pwm ? LED_BLINK_BRIGHTNESS : LED_BLINK_RGB; }
+  blink_step_type_t step_type() const { return PWM_LED ? LED_BLINK_BRIGHTNESS : LED_BLINK_RGB; }
   uint32_t value(uint32_t hue, uint8_t brightness, bool swap) const {
-    return pwm ? brightness : color(hue, brightness, swap);  // Absolute RGB for status pixel 0.
+    return PWM_LED ? brightness : color(hue, brightness, swap);  // Absolute RGB for status pixel 0.
   }
 
   void select_base(const BaseState& state) {
@@ -258,13 +262,12 @@ bool led_init(void) {
     DEBUG_PRINTF("LED setup failed\n");
     return false;
   }
-  auto next = std::make_unique<Controller>(esp32hal->LED_TYPE() == LedType::PWM, esp32hal->LED_MAX_BRIGHTNESS(),
-                                           esp32hal->LED_COUNT());
+  auto next = std::make_unique<Controller>(esp32hal->LED_MAX_BRIGHTNESS(), esp32hal->LED_COUNT());
   led_indicator_config_t config = {};
   config.blink_lists = next->programs.data();
   config.blink_list_num = PROGRAM_COUNT;
   esp_err_t result;
-  if (next->pwm) {
+  if constexpr (PWM_LED) {
     led_indicator_ledc_config_t pwm = {};
     pwm.gpio_num = pin;
     pwm.is_active_level_high = esp32hal->LED_ACTIVE_LEVEL_HIGH();
@@ -312,7 +315,10 @@ void led_exe(void) {
     }
     led.active_feedback = requested_feedback;
   }
-  if (led.active_feedback != LedFeedback::NONE || led.pwm || led.count <= 1) {
+  if constexpr (PWM_LED) {
+    return;
+  }
+  if (led.active_feedback != LedFeedback::NONE || led.count <= 1) {
     return;  // Preserve the old behaviour: auxiliary pixels freeze during feedback.
   }
   const uint8_t mask = indicator_mask.load(std::memory_order_relaxed);
