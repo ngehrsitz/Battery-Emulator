@@ -5,6 +5,7 @@
 #include <soc/gpio_num.h>
 #include <chrono>
 #include <unordered_map>
+#include <vector>
 #include "../../../src/communication/nvm/comm_nvm.h"
 #include "../../../src/devboard/utils/events.h"
 #include "../../../src/devboard/utils/logging.h"
@@ -204,6 +205,7 @@ class Esp32Hal {
 
   // LED
   virtual gpio_num_t LED_PIN() { return GPIO_NUM_NC; }
+  virtual bool LED_ACTIVE_LEVEL_HIGH() { return true; }
   virtual uint8_t LED_MAX_BRIGHTNESS() { return 40; }
   // Number of LEDs chained off LED_PIN(). Pixel 0 is always the STATUS LED; boards that replace
   // additional hardwired indicator LEDs with RGB LEDs on the same chain report more than 1 here.

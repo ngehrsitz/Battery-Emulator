@@ -19,6 +19,14 @@
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
 # CONFIG_COMPILER_OPTIMIZATION_DEBUG is not set
 
+# LED patterns already contain the emulator's limited, linear brightness values.
+# The default gamma table maps Stark's 20/255 error indication to zero.
+# CONFIG_USE_GAMMA_CORRECTION is not set
+# On classic ESP32, use the low-speed LEDC group, separate from Arduino contactor
+# channels 0-3 in the high-speed group. The LED owns low-speed channel 4 / timer 2.
+CONFIG_LEDC_LOW_SPEED_MODE=y
+# CONFIG_LEDC_HIGH_SPEED_MODE is not set
+
 # No Bluetooth anywhere in the app. Usually off already under Arduino-as-lib,
 # but assert it so it can never get pulled in.
 # CONFIG_BT_ENABLED is not set
@@ -101,6 +109,5 @@ CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
 # assume IPv6 types are present. Enable ONLY if the web UI + mDNS still build and
 # work on every target. Leave commented until you've tested it.
 # # CONFIG_LWIP_IPV6 is not set
-
 
 
