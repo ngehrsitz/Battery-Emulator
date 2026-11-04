@@ -1,0 +1,124 @@
+--- a/managed_components/espressif__led_indicator/private_include/led_common.h
++++ b/managed_components/espressif__led_indicator/private_include/led_common.h
+@@ -55,7 +55,6 @@
+     uint16_t fade_value_count;                     /*!< Count the number of fade */
+     uint16_t fade_step;                            /*!< Step of fade */
+     uint16_t fade_total_step;                      /*!< Total step of fade */
+-    uint32_t max_duty;                             /*!< Max duty cycle from duty_resolution : 2^duty_resolution -1 */
+     SemaphoreHandle_t mutex;                       /*!< Mutex to achieve thread-safe */
+     TimerHandle_t h_timer;                         /*!< LED timer handle, invalid if works in pwm mode */
+     blink_step_t const **blink_lists;              /*!< User defined LED blink lists */
+--- a/managed_components/espressif__led_indicator/src/led_indicator.c
++++ b/managed_components/espressif__led_indicator/src/led_indicator.c
+@@ -16,6 +16,10 @@
+ #include "led_common.h"
+ 
+ static const char *TAG = "led_indicator";
++
++#ifndef LED_INDICATOR_ADVANCED_BLINK_ENABLED
++#define LED_INDICATOR_ADVANCED_BLINK_ENABLED 1
++#endif
+ 
+ #define MAX3(x, y, z) ((x) > (y) ? ((x) > (z) ? (x) : (z)) : ((y) > (z) ? (y) : (z)))
+ 
+@@ -156,10 +160,14 @@
+             .value = p_blink_step->value,
+         };
+ 
++#if LED_INDICATOR_ADVANCED_BLINK_ENABLED
+         // No advance loading actions in breathe mode
+         if (p_blink_step->type != LED_BLINK_BREATHE && p_blink_step->type != LED_BLINK_RGB_RING && p_blink_step->type != LED_BLINK_HSV_RING) {
+             p_led_indicator->p_blink_steps[active_blink] += 1;
+         }
++#else
++        p_led_indicator->p_blink_steps[active_blink] += 1;
++#endif
+ 
+         switch (p_blink_step->type) {
+         case LED_BLINK_LOOP:
+@@ -214,6 +222,7 @@
+             break;
+         }
+ 
++#if LED_INDICATOR_ADVANCED_BLINK_ENABLED
+         case LED_BLINK_RGB_RING: {
+             if (!p_led_indicator->hal_indicator_set_rgb) {
+                 ESP_LOGW(TAG, "LED_BLINK_RGB_RING Skip: no hal_indicator_set_hsv function");
+@@ -360,6 +369,8 @@
+             break;
+         }
+ 
++#endif
++
+         case LED_BLINK_BRIGHTNESS: {
+             if (!p_led_indicator->hal_indicator_set_brightness) {
+                 ESP_LOGW(TAG, "LED_BLINK_BRIGHTNESS Skip: no hal_indicator_set_brightness function");
+@@ -380,6 +391,7 @@
+             break;
+         }
+ 
++#if LED_INDICATOR_ADVANCED_BLINK_ENABLED
+         case LED_BLINK_BREATHE: {
+             if (!p_led_indicator->hal_indicator_set_brightness) {
+                 ESP_LOGW(TAG, "LED_BLINK_BREATHE Skip: no hal_indicator_set_brightness function");
+@@ -433,6 +445,8 @@
+ 
+             break;
+         }
++
++#endif
+ 
+         default:
+             assert(false && "invalid state");
+@@ -464,7 +478,6 @@
+     p_led_indicator->hal_indicator_set_rgb = cfg->hal_indicator_set_rgb;
+     p_led_indicator->hal_indicator_set_hsv = cfg->hal_indicator_set_hsv;
+     p_led_indicator->active_blink = NULL_ACTIVE_BLINK;
+-    p_led_indicator->max_duty = pow(2, cfg->duty_resolution) - 1;
+     p_led_indicator->preempt_blink = NULL_PREEMPT_BLINK;
+     p_led_indicator->blink_lists = cfg->blink_lists;
+     p_led_indicator->p_blink_steps = (int *)calloc(cfg->blink_list_num, sizeof(int));
+--- a/managed_components/espressif__led_indicator/src/led_indicator_ledc.c
++++ b/managed_components/espressif__led_indicator/src/led_indicator_ledc.c
+@@ -51,7 +51,7 @@
+         ledc_timer_config_t ledc_timer_cfg = LEDC_TIMER_CONFIG(cfg->timer_num);
+         ret = ledc_timer_config(&ledc_timer_cfg);
+         LED_LEDC_CHECK(ESP_OK == ret, "LEDC timer config fail!", goto EXIT);
+-        s_ledc->max_duty = pow(2, ledc_timer_cfg.duty_resolution) - 1;
++        s_ledc->max_duty = (1U << ledc_timer_cfg.duty_resolution) - 1U;
+     }
+ 
+     ledc_channel_t ch = cfg->channel;
+--- a/managed_components/espressif__led_indicator/src/led_indicator_rgb.c
++++ b/managed_components/espressif__led_indicator/src/led_indicator_rgb.c
+@@ -39,7 +39,7 @@
+         ledc_timer_config_t ledc_timer_cfg = LEDC_TIMER_CONFIG(cfg->timer_num);
+         ret = ledc_timer_config(&ledc_timer_cfg);
+         LED_RGB_CHECK(ESP_OK == ret, "LEDC timer config fail!", goto EXIT);
+-        rgb->max_duty = pow(2, ledc_timer_cfg.duty_resolution) - 1;
++        rgb->max_duty = (1U << ledc_timer_cfg.duty_resolution) - 1U;
+     }
+ 
+ #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 4, 0)
+--- a/managed_components/espressif__led_indicator/src/led_indicator_strips.c
++++ b/managed_components/espressif__led_indicator/src/led_indicator_strips.c
+@@ -20,6 +20,10 @@
+ #include "led_indicator_blink_default.h"
+ 
+ #define TAG "led_strips"
++
++#ifndef LED_INDICATOR_STRIP_SPI_ENABLED
++#define LED_INDICATOR_STRIP_SPI_ENABLED 1
++#endif
+ 
+ #define LED_STRIPS_CHECK(a, str, action, ...)                       \
+     if (unlikely(!(a)))                                           \
+@@ -52,7 +56,7 @@
+         break;
+     }
+ #endif
+-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
++#if LED_INDICATOR_STRIP_SPI_ENABLED && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 1, 0)
+     case LED_STRIP_SPI: {
+         ret = led_strip_new_spi_device(&cfg->led_strip_cfg, &cfg->led_strip_spi_cfg, &p_strip->led_strip);
+         LED_STRIPS_CHECK(ret == ESP_OK, "Created LED strip object with SPI backend", goto fail);
