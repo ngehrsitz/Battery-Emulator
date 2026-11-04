@@ -37,8 +37,6 @@ enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT };
 #endif
 
 enum class LedType { ADDRESSABLE_RGB, PWM };
-enum class LedModel { WS2812, SK6812 };
-enum class LedColorOrder { RGB, GRB };
 
 enum PrechargeState {
   AUTO_PRECHARGE_IDLE,

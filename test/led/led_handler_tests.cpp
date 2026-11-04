@@ -30,12 +30,8 @@ class TestHal : public TestHalBase {
  public:
   uint8_t maximum = 40;
   gpio_num_t pin = GPIO_NUM_15;
-  LedModel model = LedModel::WS2812;
-  LedColorOrder order = LedColorOrder::GRB;
   gpio_num_t LED_PIN() override { return pin; }
   uint8_t LED_MAX_BRIGHTNESS() override { return maximum; }
-  LedModel LED_MODEL() override { return model; }
-  LedColorOrder LED_COLOR_ORDER() override { return order; }
   uint8_t LED_COUNT() override {
 #ifdef HW_DFROBOT_EDGE101
     return 1;
@@ -109,8 +105,6 @@ class LedHandlerTest : public testing::Test {
     auto next = std::make_unique<TestHal>();
     next->maximum = test_hal->maximum;
     next->pin = test_hal->pin;
-    next->model = test_hal->model;
-    next->order = test_hal->order;
     test_hal = std::move(next);
     esp32hal = test_hal.get();
     const bool ok = led_init();
@@ -180,16 +174,6 @@ TEST_F(LedHandlerTest, BoardHalSelectsNativeHardwareConfiguration) {
   EXPECT_EQ(led_test_strip_config().led_strip_driver, LED_STRIP_RMT);
 #endif
 }
-
-#ifndef HW_DFROBOT_EDGE101
-TEST_F(LedHandlerTest, PixelModelAndColorOrderComeFromHalRatherThanDriverConstants) {
-  test_hal->model = LedModel::SK6812;
-  test_hal->order = LedColorOrder::RGB;
-  ASSERT_TRUE(initialize());
-  EXPECT_EQ(led_test_strip_config().led_strip_cfg.led_model, LED_MODEL_SK6812);
-  EXPECT_EQ(led_test_strip_config().led_strip_cfg.color_component_format, LED_STRIP_COLOR_COMPONENT_FMT_RGB);
-}
-#endif
 
 TEST_F(LedHandlerTest, ClassicKeepsItsThreeSecondWaveformWithoutPollingOutput) {
   EXPECT_EQ(program_duration(led_test_base_program()), 3000u);

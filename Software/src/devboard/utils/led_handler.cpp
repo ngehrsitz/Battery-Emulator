@@ -277,10 +277,9 @@ bool led_init(void) {
     led_indicator_strips_config_t strip = {};
     strip.led_strip_cfg.strip_gpio_num = pin;
     strip.led_strip_cfg.max_leds = next->count;
-    strip.led_strip_cfg.led_model = esp32hal->LED_MODEL() == LedModel::SK6812 ? LED_MODEL_SK6812 : LED_MODEL_WS2812;
-    strip.led_strip_cfg.color_component_format = esp32hal->LED_COLOR_ORDER() == LedColorOrder::RGB
-                                                     ? LED_STRIP_COLOR_COMPONENT_FMT_RGB
-                                                     : LED_STRIP_COLOR_COMPONENT_FMT_GRB;
+    strip.led_strip_cfg.led_model = LED_MODEL_WS2812;
+    // The old driver's default offsets transmitted G/R/B, despite calling its mode "RGB".
+    strip.led_strip_cfg.color_component_format = LED_STRIP_COLOR_COMPONENT_FMT_GRB;
     strip.led_strip_driver = LED_STRIP_RMT;
     strip.led_strip_rmt_cfg.clk_src = RMT_CLK_SRC_DEFAULT;
     strip.led_strip_rmt_cfg.resolution_hz = 10000000;
